@@ -1848,26 +1848,28 @@ export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, auth
   const isSA     = user?.role === 'superadmin'
   const isInvite = user?.role === 'invite'
 
+  const checkBadges = useCallback(async () => {
+    if (!isSA) return
+    try {
+      const [rPending, rTrash] = await Promise.all([
+        authFetch(`${apiBase}/api/auth-requests?status=en_attente`),
+        authFetch(`${apiBase}/api/fiches/trash?page=1&limit=1`),
+      ])
+      const jPending = await rPending.json()
+      const jTrash   = await rTrash.json()
+      const cnt = Array.isArray(jPending) ? jPending.filter(r => r.status==='en_attente').length : 0
+      setPendingCount(prev => prev === cnt ? prev : cnt)
+      setTrashCount(prev => prev === (jTrash.total||0) ? prev : (jTrash.total||0))
+    } catch {}
+  }, [isSA, apiBase, authFetch])
+
   /* Polling demandes en attente + corbeille pour badges sidebar (superadmin) */
   useEffect(() => {
     if (!isSA) return
-    const checkBadges = async () => {
-      try {
-        const [rPending, rTrash] = await Promise.all([
-          authFetch(`${apiBase}/api/auth-requests?status=en_attente`),
-          authFetch(`${apiBase}/api/fiches/trash?page=1&limit=1`),
-        ])
-        const jPending = await rPending.json()
-        const jTrash   = await rTrash.json()
-        const cnt = Array.isArray(jPending) ? jPending.filter(r => r.status==='en_attente').length : 0
-        setPendingCount(prev => prev === cnt ? prev : cnt)
-        setTrashCount(prev => prev === (jTrash.total||0) ? prev : (jTrash.total||0))
-      } catch {}
-    }
     checkBadges()
     const interval = setInterval(checkBadges, 10000)
     return () => clearInterval(interval)
-  }, [isSA, apiBase, authFetch])
+  }, [isSA, checkBadges])
 
   const loadRecent = useCallback(async (silent=false) => {
     try {
@@ -1884,6 +1886,22 @@ export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, auth
     const interval = setInterval(() => loadRecent(true), 15000)
     return () => clearInterval(interval)
   }, [loadRecent])
+
+  useEffect(() => {
+    if (!user?.id) return
+
+    const stream = new EventSource(`${apiBase}/api/events?userId=${encodeURIComponent(user.id)}`)
+    stream.onmessage = event => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.event === 'fiches:changed') loadRecent(true)
+        if (data.event === 'auth-requests:changed') checkBadges()
+        if (data.event === 'fiches:changed' && isSA) checkBadges()
+      } catch {}
+    }
+
+    return () => stream.close()
+  }, [apiBase, user?.id, isSA, loadRecent, checkBadges])
 
   return (
     <div className="flex h-screen overflow-hidden font-sans" style={{ position:'relative' }}>

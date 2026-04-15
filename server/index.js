@@ -13,6 +13,7 @@ import authRouter   from './routes/auth.js'
 import usersRouter       from './routes/users.js'
 import authRequestsRouter from './routes/authRequests.js'
 import activityLogsRouter  from './routes/activityLogs.js'
+import eventsRouter from './routes/events.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app  = express()
@@ -45,6 +46,7 @@ app.use('/api/auth',          authRouter)
 app.use('/api/users',         usersRouter)
 app.use('/api/auth-requests', authRequestsRouter)
 app.use('/api/logs',          activityLogsRouter)
+app.use('/api/events',        eventsRouter)
 app.use('/api/fiches',        fichesRouter)
 
 /* ── Connexion MongoDB ──────────────────────────────────────────────────── */

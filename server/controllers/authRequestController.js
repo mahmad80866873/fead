@@ -1,5 +1,6 @@
 import AuthRequest from '../models/AuthRequest.js'
 import Fiche       from '../models/Fiche.js'
+import { broadcastRealtime } from '../utils/realtime.js'
 
 const MODIFY_LIMIT_MS = 3 * 60 * 60 * 1000   // 3 heures
 const DELETE_LIMIT_MS = 30 * 60 * 1000        // 30 minutes
@@ -30,6 +31,7 @@ export async function createRequest(req, res) {
       fiche: ficheId, ficheNom, action, motif,
       requestedBy: req.user._id, requestedByName,
     })
+    broadcastRealtime('auth-requests:changed', { action: 'create', requestId: request._id.toString() })
     res.status(201).json(request)
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -74,6 +76,7 @@ export async function processRequest(req, res) {
       request.expiresAt = new Date(Date.now() + APPROVAL_WINDOW)
 
     await request.save()
+    broadcastRealtime('auth-requests:changed', { action: status, requestId: request._id.toString() })
     res.json(request)
   } catch (err) {
     res.status(500).json({ error: err.message })

@@ -3,6 +3,7 @@ import path  from 'path'
 import fs    from 'fs'
 import { canAgentAct } from './authRequestController.js'
 import { log } from '../utils/logger.js'
+import { broadcastRealtime } from '../utils/realtime.js'
 
 /* ── GET /api/fiches ─────────────────────────────────────────────────────── */
 export async function listFiches(req, res) {
@@ -72,6 +73,7 @@ export async function createFiche(req, res) {
       await log(req.user, 'creer', { cible, ficheId: fiche._id, details, ip: req.ip })
     }
 
+    broadcastRealtime('fiches:changed', { action: 'create', ficheId: fiche._id.toString() })
     res.status(201).json(fiche)
   } catch (err) {
     console.error('[createFiche]', err)
@@ -116,6 +118,7 @@ export async function updateFiche(req, res) {
       await log(req.user, 'modifier', { cible, ficheId: req.params.id, details, ip: req.ip })
     }
 
+    broadcastRealtime('fiches:changed', { action: 'update', ficheId: req.params.id })
     res.json(fiche)
   } catch (err) {
     console.error('[updateFiche]', err)
@@ -152,6 +155,7 @@ export async function deleteFiche(req, res) {
     const details = motif || `Suppression du dossier de ${cible}${fiche.noDossier ? ' (N° ' + fiche.noDossier + ')' : ''}`
     if (req.user) await log(req.user, 'supprimer', { cible, ficheId: fiche._id, details, ip: req.ip })
 
+    broadcastRealtime('fiches:changed', { action: 'trash', ficheId: req.params.id })
     res.json({ message: 'Fiche mise en corbeille.' })
   } catch (err) {
     console.error('[deleteFiche]', err)
@@ -183,6 +187,7 @@ export async function restoreFiche(req, res) {
       { new: true }
     )
     if (!fiche) return res.status(404).json({ error: 'Fiche introuvable.' })
+    broadcastRealtime('fiches:changed', { action: 'restore', ficheId: req.params.id })
     res.json({ message: 'Fiche restaurée.' })
   } catch (err) {
     res.status(500).json({ error: 'Erreur serveur.' })
@@ -202,6 +207,7 @@ export async function permanentDelete(req, res) {
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
     }
 
+    broadcastRealtime('fiches:changed', { action: 'permanent-delete', ficheId: req.params.id })
     res.json({ message: 'Fiche supprimée définitivement.' })
   } catch (err) {
     console.error('[permanentDelete]', err)
