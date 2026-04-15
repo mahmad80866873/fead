@@ -1988,10 +1988,16 @@ export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, auth
   useEffect(() => {
     if (!user?.id) return
 
-    const stream = new EventSource(`${apiBase}/api/events?userId=${encodeURIComponent(user.id)}`)
+    const stream = new EventSource(
+      `${apiBase}/api/events?userId=${encodeURIComponent(user.id)}&sessionId=${encodeURIComponent(user.sessionId || '')}`
+    )
     stream.onmessage = event => {
       try {
         const data = JSON.parse(event.data)
+        if (data.event === 'session-expired') {
+          onLogout?.()
+          return
+        }
         if (data.event === 'fiches:changed') loadRecent(true)
         if (data.event === 'auth-requests:changed') checkBadges()
         if (data.event === 'fiches:changed' && isSA) checkBadges()
@@ -1999,7 +2005,7 @@ export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, auth
     }
 
     return () => stream.close()
-  }, [apiBase, user?.id, isSA, loadRecent, checkBadges])
+  }, [apiBase, user?.id, user?.sessionId, isSA, loadRecent, checkBadges, onLogout])
 
   useEffect(() => {
     setSidebarOpen(false)

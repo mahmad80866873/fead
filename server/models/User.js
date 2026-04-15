@@ -10,6 +10,10 @@ const UserSchema = new mongoose.Schema({
   service:   { type: String, trim: true },
   actif:     { type: Boolean, default: true },
   lastLogin: { type: Date },
+  currentSessionId:    { type: String, default: null },
+  currentSessionDevice:{ type: String, default: null },
+  sessionStartedAt:    { type: Date, default: null },
+  sessionLastSeenAt:   { type: Date, default: null },
 }, { timestamps: true, collection: 'users' })
 
 /* Hash du mot de passe avant sauvegarde */

@@ -76,7 +76,11 @@ export default function Login({ onLogin }) {
       setLoading(true); setError('')
       const res  = await fetch(`${API_BASE}/api/auth/login`, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ matricule: matricule.trim(), password: password.trim() }),
+        body: JSON.stringify({
+          matricule: matricule.trim(),
+          password: password.trim(),
+          deviceLabel: navigator.userAgent,
+        }),
       })
       const json = await res.json()
       if (!res.ok) { setError(json.error || 'Identifiants incorrects.'); return }

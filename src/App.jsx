@@ -133,16 +133,31 @@ function Cell({ label, children, cls='', style, borderRight=true }) {
 
 /* ── App ──────────────────────────────────────────────────────────────────── */
 /* ── Helper fetch avec auth header ──────────────────────────────────────── */
-function makeAuthFetch(userId) {
-  return (url, opts = {}) => fetch(url, {
-    ...opts,
-    headers: { ...(opts.headers || {}), 'X-User-Id': userId },
-  })
+function makeAuthFetch(user, onSessionExpired) {
+  return async (url, opts = {}) => {
+    const res = await fetch(url, {
+      ...opts,
+      headers: {
+        ...(opts.headers || {}),
+        'X-User-Id': user.id,
+        'X-Session-Id': user.sessionId,
+      },
+    })
+
+    if (res.status === 401) {
+      try {
+        const json = await res.clone().json()
+        if (json?.code === 'SESSION_EXPIRED') onSessionExpired?.()
+      } catch {}
+    }
+
+    return res
+  }
 }
 
 /* ── App authentifiée ─────────────────────────────────────────────────────── */
 function AuthenticatedApp({ user, onLogout }) {
-  const authFetch = makeAuthFetch(user.id)
+  const authFetch = makeAuthFetch(user, onLogout)
   /* Navigation : 'dashboard' | 'form' */
   const [view, setView]     = useState('dashboard')
   const [editId, setEditId] = useState(null)
@@ -1077,19 +1092,67 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('faed_user')) } catch { return null }
   })
 
+  const clearUser = () => {
+    clearUser()
+  }
+
   const handleLogin  = (u) => setUser(u)
   const handleLogout = async () => {
     if (user) {
       try {
         await fetch(`${API_BASE}/api/auth/logout`, {
           method: 'POST',
-          headers: { 'X-User-Id': user.id },
+          headers: { 'X-User-Id': user.id, 'X-Session-Id': user.sessionId },
         })
       } catch { /* on déconnecte quand même si l'API est inaccessible */ }
     }
-    localStorage.removeItem('faed_user')
-    setUser(null)
+    clearUser()
   }
+
+  useEffect(() => {
+    if (!user?.id || !user?.sessionId) return undefined
+
+    const timeoutMs = 15 * 60 * 1000
+    let idleTimer = null
+    let heartbeatTimer = null
+    let lastActivity = Date.now()
+
+    const sendHeartbeat = async () => {
+      try {
+        await fetch(`${API_BASE}/api/auth/heartbeat`, {
+          method: 'POST',
+          headers: { 'X-User-Id': user.id, 'X-Session-Id': user.sessionId },
+        })
+      } catch {}
+    }
+
+    const logoutIfIdle = () => {
+      if (Date.now() - lastActivity >= timeoutMs) handleLogout()
+    }
+
+    const scheduleIdleTimer = () => {
+      clearTimeout(idleTimer)
+      idleTimer = setTimeout(logoutIfIdle, timeoutMs)
+    }
+
+    const onActivity = () => {
+      lastActivity = Date.now()
+      scheduleIdleTimer()
+      clearTimeout(heartbeatTimer)
+      heartbeatTimer = setTimeout(sendHeartbeat, 800)
+    }
+
+    const events = ['pointerdown', 'keydown', 'mousemove', 'scroll', 'touchstart']
+    events.forEach(eventName => window.addEventListener(eventName, onActivity, { passive: true }))
+    scheduleIdleTimer()
+    sendHeartbeat()
+
+    return () => {
+      clearTimeout(idleTimer)
+      clearTimeout(heartbeatTimer)
+      events.forEach(eventName => window.removeEventListener(eventName, onActivity))
+    }
+  }, [user?.id, user?.sessionId])
 
   if (!user) return <Login onLogin={handleLogin} />
   return <AuthenticatedApp user={user} onLogout={handleLogout} />
