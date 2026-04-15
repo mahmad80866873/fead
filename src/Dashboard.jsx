@@ -275,7 +275,7 @@ function PdfPreviewModal({ record, apiBase, onClose }) {
 
       {/* Barre du modal — ligne 1 : titre + fermer */}
       <div style={{ background: C.navy, borderBottom:`1px solid rgba(196,154,40,0.2)` }}
-        className="flex items-center gap-3 px-5 py-3 shrink-0">
+        className="flex items-center gap-3 px-4 py-3 shrink-0">
         <div style={{ color: C.gold }} className="shrink-0"><IconShield /></div>
         <div className="flex-1 min-w-0">
           <div style={{ color: C.gold }} className="text-[11px] font-black truncate uppercase tracking-wider">{nom}</div>
@@ -294,7 +294,7 @@ function PdfPreviewModal({ record, apiBase, onClose }) {
 
       {/* Barre du modal — ligne 2 : actions téléchargement */}
       <div style={{ background: C.navy2, borderBottom:`2px solid ${C.gold}` }}
-        className="flex items-center gap-2 px-5 py-2 shrink-0">
+        className="flex flex-wrap items-center gap-2 px-5 py-2 shrink-0">
         {/* Télécharger PDF */}
         <button onClick={downloadPdf} disabled={loading || !pdfUrl}
           style={{ background: C.navy, color: C.gold, border:`1px solid ${C.gold}` }}
@@ -698,10 +698,10 @@ function PageCorbeille({ apiBase, authFetch }) {
             const nom = [f.nom, f.prenoms].filter(Boolean).join(' ') || 'Sans nom'
             return (
               <div key={f._id} style={{ border:`1px solid ${C.border}`, borderLeft:`4px solid #ef4444` }}
-                className="bg-white rounded-sm px-4 py-3 flex items-center gap-4">
+                className="bg-white rounded-sm px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <div style={{ color: C.navy }} className="text-[12px] font-black truncate">{nom}</div>
-                  <div style={{ color: C.muted }} className="text-[9px] mt-0.5 space-x-3">
+                  <div style={{ color: C.muted }} className="text-[9px] mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5">
                     <span>N° {f.noDossier || '—'}</span>
                     <span>·</span>
                     <span>Supprimé par : <strong>{f.deletedByName || '—'}</strong></span>
@@ -951,7 +951,7 @@ function PageDossiers({ apiBase, onNew, onOpen, user, authFetch }) {
         <div className="flex flex-wrap items-center gap-2">
 
           {/* Filtre Type */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-wrap">
             <span style={{ color: C.muted }} className="text-[9px] font-bold uppercase tracking-wider shrink-0">Type :</span>
             {[['','Tous'],['gn','GN']].map(([v,l]) => (
               <button key={v} onClick={() => setType(v)}
@@ -965,26 +965,23 @@ function PageDossiers({ apiBase, onNew, onOpen, user, authFetch }) {
             ))}
           </div>
 
-          {/* Séparateur */}
-          <div style={{ width:1, height:20, background: C.border }} className="mx-1 shrink-0" />
-
           {/* Intervalle de dates */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span style={{ color: C.muted }} className="text-[9px] font-bold uppercase tracking-wider shrink-0">Du :</span>
             <input type="date" value={dateDebut} onChange={e=>setDateDebut(e.target.value)}
               style={{ color: C.text, border:`1px solid ${C.border}` }}
-              className="text-[10px] px-2 py-1 rounded-sm outline-none bg-white" />
+              className="text-[10px] px-2 py-1 rounded-sm outline-none bg-white min-w-0 w-full sm:w-auto" />
             <span style={{ color: C.muted }} className="text-[9px] font-bold uppercase tracking-wider shrink-0">Au :</span>
             <input type="date" value={dateFin} onChange={e=>setDateFin(e.target.value)}
               style={{ color: C.text, border:`1px solid ${C.border}` }}
-              className="text-[10px] px-2 py-1 rounded-sm outline-none bg-white" />
+              className="text-[10px] px-2 py-1 rounded-sm outline-none bg-white min-w-0 w-full sm:w-auto" />
           </div>
 
           {/* Bouton réinitialiser */}
           {hasFilters && (
             <button onClick={resetFilters}
               style={{ color: C.muted, border:`1px solid ${C.border}` }}
-              className="ml-auto px-3 py-1 text-[9px] font-bold rounded-sm hover:bg-red-50
+              className="px-3 py-1 text-[9px] font-bold rounded-sm hover:bg-red-50
                 hover:text-red-500 hover:border-red-200 transition-all tracking-wider uppercase">
               ✕ Réinitialiser
             </button>
@@ -1355,7 +1352,8 @@ function JournalActivite({ apiBase, authFetch }) {
         </div>
       ) : (
         <>
-          <div style={{ border:`1px solid ${C.border}` }} className="bg-white rounded-sm overflow-hidden">
+          <div style={{ border:`1px solid ${C.border}` }} className="bg-white rounded-sm overflow-hidden overflow-x-auto">
+            <div className="min-w-[560px]">
             {/* En-tête */}
             <div style={{ background: C.navy, color: C.gold }}
               className="grid grid-cols-[1.5fr_1fr_1fr_2fr_1fr] px-4 py-2 text-[8px] font-black uppercase tracking-wider gap-2">
@@ -1388,6 +1386,7 @@ function JournalActivite({ apiBase, authFetch }) {
                 </div>
               )
             })}
+            </div>
           </div>
           {pages > 1 && (
             <div className="flex items-center justify-center gap-3 pt-1">
@@ -1485,7 +1484,7 @@ function PanneauDemandes({ apiBase, authFetch }) {
             const actionLabel = r.action === 'modifier' ? 'Modifier' : 'Supprimer'
             return (
               <div key={r._id} style={{ border:`1px solid ${C.border}` }}
-                className="bg-white rounded-sm p-3 flex items-start gap-3">
+                className="bg-white rounded-sm p-3 flex flex-col sm:flex-row items-start gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span style={{ background: r.action==='modifier'?'#e0e7ff':'#fee2e2',
@@ -1621,7 +1620,8 @@ function PageUtilisateurs({ apiBase, authFetch }) {
             style={{ borderColor:`${C.gold} transparent ${C.gold} ${C.gold}` }}/>
         </div>
       ) : (
-        <div style={{ border:`1px solid ${C.border}` }} className="bg-white rounded-sm overflow-hidden">
+        <div style={{ border:`1px solid ${C.border}` }} className="bg-white rounded-sm overflow-hidden overflow-x-auto">
+          <div className="min-w-[480px]">
           {/* En-tête */}
           <div style={{ background: C.navy, color: C.gold }}
             className="grid grid-cols-[2fr_1fr_1.5fr_1fr_auto] px-4 py-2.5 text-[9px] font-black uppercase tracking-wider gap-3">
@@ -1696,6 +1696,7 @@ function PageUtilisateurs({ apiBase, authFetch }) {
               </div>
             </div>
           ))}
+          </div>
         </div>
       )}
 
@@ -1745,10 +1746,77 @@ function Sidebar({ active, setActive, onLogout, user, pendingCount, trashCount, 
           mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       />
-      <aside style={{ background: C.sidebar, width: 220, flexShrink: 0, position:'relative', overflow:'hidden' }}
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col h-screen transition-transform duration-200 md:sticky md:top-0 md:z-auto ${
+      <aside style={{ background: C.sidebar, width: 220, position:'fixed', inset:'0 auto 0 0', overflow:'hidden' }}
+        className={`z-40 flex flex-col h-screen transition-transform duration-200 md:hidden ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
-        } md:translate-x-0`}>
+        }`}>
+        <SidebarHex />
+
+        <div style={{ position:'absolute', top:0, left:0, right:0, height:2,
+          background:`linear-gradient(90deg, transparent, ${C.gold}, transparent)`,
+          animation:'dashGlowPulse 3s ease infinite', zIndex:1 }}/>
+
+        <div style={{ borderBottom:`1px solid rgba(196,154,40,0.15)`, position:'relative', zIndex:2 }} className="px-4 py-5">
+          <div style={{ color: C.gold }} className="text-[11px] font-black tracking-[0.18em] uppercase leading-tight">
+            FAED Niger
+          </div>
+          <div style={{ color:'rgba(196,154,40,0.45)' }} className="text-[8px] tracking-widest uppercase leading-tight mt-0.5">
+            Gendarmerie Nationale
+          </div>
+        </div>
+
+        <nav className="flex-1 px-3 py-4 space-y-0.5" style={{ position:'relative', zIndex:2 }}>
+          {navItems.map(item => {
+            const isActive = active === item.id
+            return (
+              <button key={`m-${item.id}`} onClick={() => { setActive(item.id); onClose?.() }}
+                style={{
+                  background: isActive
+                    ? `linear-gradient(90deg, rgba(196,154,40,0.18), rgba(196,154,40,0.06))`
+                    : 'transparent',
+                  color: isActive ? C.gold : 'rgba(255,255,255,0.45)',
+                  borderLeft: isActive ? `3px solid ${C.gold}` : '3px solid transparent',
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-r-sm text-left dash-nav-btn text-[11px] font-semibold tracking-wide">
+                <span>{item.icon}</span>
+                <span className="flex-1">{item.label}</span>
+                {item.badge > 0 && (
+                  <span style={{ background: item.badgeColor || C.gold, color: item.badgeColor ? 'white' : C.navy }}
+                    className="text-[8px] font-black px-1.5 py-0.5 rounded-full leading-none">
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </nav>
+
+        <div style={{ borderTop:`1px solid rgba(196,154,40,0.12)`, position:'relative', zIndex:2 }} className="px-3 py-3 space-y-1">
+          {user && (
+            <div style={{ background:'rgba(196,154,40,0.06)', border:`1px solid rgba(196,154,40,0.12)` }}
+              className="px-3 py-2 rounded-sm">
+              <div style={{ color:'rgba(255,255,255,0.75)' }} className="text-[10px] font-bold truncate">
+                {[user.prenom, user.nom].filter(Boolean).join(' ') || user.matricule}
+              </div>
+            </div>
+          )}
+          <button
+            onClick={() => {
+              if (window.confirm('Se déconnecter ?')) {
+                onClose?.()
+                onLogout()
+              }
+            }}
+            style={{ color:'rgba(255,255,255,0.3)' }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-left dash-nav-btn text-[11px] font-semibold tracking-wide hover:!bg-red-900/30 hover:!text-red-400">
+            <IconLogout />
+            Se déconnecter
+          </button>
+        </div>
+      </aside>
+
+      <aside style={{ background: C.sidebar, width: 220, flexShrink: 0, position:'relative', overflow:'hidden' }}
+        className="hidden md:flex md:flex-col h-screen sticky top-0">
 
       {/* Hex pattern bg */}
       <SidebarHex />
@@ -1938,7 +2006,7 @@ export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, auth
   }, [active, isFormView])
 
   return (
-    <div className="block md:flex h-screen overflow-hidden font-sans w-full" style={{ position:'relative' }}>
+    <div className="flex h-screen overflow-hidden font-sans w-full" style={{ position:'relative' }}>
       <DashStyles />
       <MainHex />
       <ScanLine />
@@ -1956,7 +2024,7 @@ export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, auth
       />
 
       {/* Contenu principal */}
-      <main style={{ background:'#f0f4eb' }} className="w-full min-w-0 md:flex-1 overflow-y-auto relative">
+      <main style={{ background:'#f0f4eb' }} className="flex-1 min-w-0 overflow-y-auto relative">
 
         {/* Top bar */}
         <div style={{
