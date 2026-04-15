@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import Dashboard from './Dashboard.jsx'
 import Login from './Login.jsx'
 
-const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:4000').replace(/\/$/, '')
+const API_BASE = (import.meta.env.VITE_API_BASE || 'https://fead-3sfa.onrender.com').replace(/\/$/, '')
 
 /* ── Palette Gendarmerie Nationale du Niger ───────────────────────────────── */
 const C = {
