@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Dashboard from './Dashboard.jsx'
 import Login from './Login.jsx'
 
@@ -1093,7 +1093,8 @@ export default function App() {
   })
 
   const clearUser = () => {
-    clearUser()
+    localStorage.removeItem('faed_user')
+    setUser(null)
   }
 
   const handleLogin  = (u) => setUser(u)
