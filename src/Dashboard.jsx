@@ -1938,7 +1938,7 @@ export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, auth
   }, [active, isFormView])
 
   return (
-    <div className="flex h-screen overflow-hidden font-sans" style={{ position:'relative' }}>
+    <div className="block md:flex h-screen overflow-hidden font-sans w-full" style={{ position:'relative' }}>
       <DashStyles />
       <MainHex />
       <ScanLine />
@@ -1956,7 +1956,7 @@ export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, auth
       />
 
       {/* Contenu principal */}
-      <main style={{ background:'#f0f4eb' }} className="flex-1 overflow-y-auto relative">
+      <main style={{ background:'#f0f4eb' }} className="w-full min-w-0 md:flex-1 overflow-y-auto relative">
 
         {/* Top bar */}
         <div style={{
