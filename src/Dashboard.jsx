@@ -108,7 +108,7 @@ function ScanLine() {
       background:'linear-gradient(90deg, transparent, rgba(196,154,40,0.35), transparent)',
       animation:'dashScan 6s linear infinite',
       pointerEvents:'none', zIndex:1,
-    }}/>
+    }} className="hidden md:block"/>
   )
 }
 
@@ -634,6 +634,14 @@ function StatCard({ label, count, sub, icon, apiBase, authFetch, metric }) {
   )
 }
 
+const IconMenu = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+    <line x1="3" y1="6" x2="21" y2="6"/>
+    <line x1="3" y1="12" x2="21" y2="12"/>
+    <line x1="3" y1="18" x2="21" y2="18"/>
+  </svg>
+)
+
 /* ── Page Corbeille ───────────────────────────────────────────────────────── */
 function PageCorbeille({ apiBase, authFetch }) {
   const [fiches, setFiches]   = useState([])
@@ -739,6 +747,22 @@ function PageCorbeille({ apiBase, authFetch }) {
 
 /* ── Page Accueil ─────────────────────────────────────────────────────────── */
 function PageAccueil({ total, records, apiBase, onNew, onOpen, onDelete, user, authFetch, pendingCount, trashCount }) {
+  const stats = [
+    ['Total Fiches', total, 'enregistrÃ©es',
+      <svg key="a" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>],
+  ]
+
+  if (user?.role === 'superadmin') {
+    stats.push(
+      ['Utilisateurs', null, 'comptes actifs',
+        <svg key="b" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>],
+      ['Autorisations', pendingCount, 'en attente',
+        <svg key="c2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>],
+      ['Corbeille', trashCount, 'fiches supprimÃ©es',
+        <svg key="d2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>],
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Titre */}
@@ -752,7 +776,7 @@ function PageAccueil({ total, records, apiBase, onNew, onOpen, onDelete, user, a
       </div>
 
       {/* Statistiques */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
           ['Total Fiches', total, 'enregistrées',
             <svg key="a" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>],
@@ -766,6 +790,7 @@ function PageAccueil({ total, records, apiBase, onNew, onOpen, onDelete, user, a
             'month'],
         ].map(([label, count, sub, icon, metric]) => {
           if (metric === 'today') {
+            if (user?.role !== 'superadmin') return null
             return (
               <StatCard
                 key="Autorisations"
@@ -780,6 +805,7 @@ function PageAccueil({ total, records, apiBase, onNew, onOpen, onDelete, user, a
           }
 
           if (metric === 'month') {
+            if (user?.role !== 'superadmin') return null
             return (
               <StatCard
                 key="Corbeille"
@@ -793,6 +819,7 @@ function PageAccueil({ total, records, apiBase, onNew, onOpen, onDelete, user, a
             )
           }
 
+          if (label === 'Utilisateurs' && user?.role !== 'superadmin') return null
           return <StatCard key={label} label={label} count={count} sub={sub} icon={icon} apiBase={apiBase} authFetch={authFetch} metric={metric} />
         })}
       </div>
@@ -1697,7 +1724,7 @@ const IconClipboard = () => (
   </svg>
 )
 
-function Sidebar({ active, setActive, onLogout, user, pendingCount, trashCount }) {
+function Sidebar({ active, setActive, onLogout, user, pendingCount, trashCount, mobileOpen, onClose }) {
   const isSA = user?.role === 'superadmin'
   const navItems = [
     { id:'accueil',      label:'Accueil',       icon:<IconHome />,      badge: 0 },
@@ -1711,8 +1738,17 @@ function Sidebar({ active, setActive, onLogout, user, pendingCount, trashCount }
   ]
 
   return (
-    <aside style={{ background: C.sidebar, width: 220, flexShrink: 0, position:'relative', overflow:'hidden' }}
-      className="flex flex-col h-screen sticky top-0">
+    <>
+      <div
+        onClick={onClose}
+        className={`fixed inset-0 z-30 bg-black/45 transition-opacity md:hidden ${
+          mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+      />
+      <aside style={{ background: C.sidebar, width: 220, flexShrink: 0, position:'relative', overflow:'hidden' }}
+        className={`fixed inset-y-0 left-0 z-40 flex flex-col h-screen transition-transform duration-200 md:sticky md:top-0 md:z-auto ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        } md:translate-x-0`}>
 
       {/* Hex pattern bg */}
       <SidebarHex />
@@ -1766,7 +1802,7 @@ function Sidebar({ active, setActive, onLogout, user, pendingCount, trashCount }
         {navItems.map(item => {
           const isActive = active === item.id
           return (
-            <button key={item.id} onClick={() => setActive(item.id)}
+            <button key={item.id} onClick={() => { setActive(item.id); onClose?.() }}
               style={{
                 background: isActive
                   ? `linear-gradient(90deg, rgba(196,154,40,0.18), rgba(196,154,40,0.06))`
@@ -1811,7 +1847,12 @@ function Sidebar({ active, setActive, onLogout, user, pendingCount, trashCount }
           </div>
         )}
         <button
-          onClick={() => window.confirm('Se déconnecter ?') && onLogout()}
+          onClick={() => {
+            if (window.confirm('Se déconnecter ?')) {
+              onClose?.()
+              onLogout()
+            }
+          }}
           style={{ color:'rgba(255,255,255,0.3)' }}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-left
             dash-nav-btn text-[11px] font-semibold tracking-wide
@@ -1821,12 +1862,14 @@ function Sidebar({ active, setActive, onLogout, user, pendingCount, trashCount }
         </button>
       </div>
     </aside>
+    </>
   )
 }
 
 /* ── Dashboard principal ─────────────────────────────────────────────────── */
 export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, authFetch, formContent, isFormView, onExitForm }) {
   const [active, setActive]       = useState('accueil')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [records, setRecords]     = useState([])
   const [total, setTotal]         = useState(0)
   const [fetching, setFetching]   = useState(false)
@@ -1890,6 +1933,10 @@ export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, auth
     return () => stream.close()
   }, [apiBase, user?.id, isSA, loadRecent, checkBadges])
 
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [active, isFormView])
+
   return (
     <div className="flex h-screen overflow-hidden font-sans" style={{ position:'relative' }}>
       <DashStyles />
@@ -1904,6 +1951,8 @@ export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, auth
         user={user}
         pendingCount={pendingCount}
         trashCount={trashCount}
+        mobileOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       {/* Contenu principal */}
@@ -1915,15 +1964,23 @@ export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, auth
           borderBottom:`1px solid ${C.border}`,
           boxShadow:'0 2px 12px rgba(28,58,14,0.06)',
         }}
-          className="sticky top-0 z-10 px-8 h-14 flex items-center justify-between">
+          className="sticky top-0 z-20 px-4 md:px-8 h-14 flex items-center justify-between gap-3">
 
           {/* Left: breadcrumb */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              style={{ background: C.navy, color: C.gold, boxShadow:'0 2px 10px rgba(28,58,14,0.18)' }}
+              className="md:hidden inline-flex items-center justify-center w-9 h-9 rounded-sm shrink-0"
+              aria-label="Ouvrir la navigation"
+            >
+              <IconMenu />
+            </button>
             {/* Gold accent bar */}
             <div style={{ width:3, height:22, background:`linear-gradient(180deg,${C.gold},${C.gold2})`,
               borderRadius:2, boxShadow:`0 0 8px rgba(196,154,40,0.5)` }}/>
-            <div>
-              <div style={{ color: C.navy }} className="text-[11px] font-black uppercase tracking-widest leading-none">
+            <div className="min-w-0">
+              <div style={{ color: C.navy }} className="text-[10px] md:text-[11px] font-black uppercase tracking-widest leading-none truncate">
                 {isFormView                               && 'Formulaire'}
                 {!isFormView && active === 'accueil'      && 'Tableau de bord'}
                 {!isFormView && active === 'dossiers'     && 'Dossiers'}
@@ -1932,15 +1989,15 @@ export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, auth
                 {!isFormView && active === 'journal'      && "Journal d'activité"}
                 {!isFormView && active === 'corbeille'    && 'Corbeille'}
               </div>
-              <div style={{ color: C.muted }} className="text-[8px] tracking-wider mt-0.5">
+              <div style={{ color: C.muted }} className="hidden sm:block text-[8px] tracking-wider mt-0.5 truncate">
                 FAED Niger — Gendarmerie Nationale
               </div>
             </div>
           </div>
 
           {/* Right */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 md:gap-4 shrink-0">
+            <div className="hidden sm:flex items-center gap-2">
               <div style={{ width:6, height:6, borderRadius:'50%', background:'#4ade80',
                 animation:'dashBlink 2.5s ease infinite', boxShadow:'0 0 6px #4ade80' }}/>
               <div style={{ color: C.muted }} className="text-[9px] font-mono">
@@ -1951,7 +2008,7 @@ export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, auth
               <button onClick={onNew}
                 style={{ background:`linear-gradient(135deg,${C.navy},${C.navy3})`, color: C.gold,
                   boxShadow:`0 2px 12px rgba(28,58,14,0.3)` }}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black rounded-sm
+                className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 text-[9px] font-black rounded-sm
                   hover:opacity-90 tracking-wider uppercase transition-opacity">
                 <IconPlus /> Nouvelle fiche
               </button>
@@ -1960,7 +2017,7 @@ export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, auth
         </div>
 
         {/* Page */}
-        <div className="p-8">
+        <div className="p-4 md:p-8">
           {isFormView ? (
             <div>
               {/* Bouton retour */}
