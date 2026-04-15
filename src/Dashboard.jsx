@@ -177,9 +177,6 @@ function PdfPreviewModal({ record, apiBase, onClose }) {
   const [loading, setLoading]   = useState(true)
   const [zipLoading, setZipLoading] = useState(false)
   const blobRef = useRef(null)
-  const count = null
-  const json = { total: null }
-  const setVal = () => {}
   const nom = [record.nom, record.prenoms].filter(Boolean).join(' ') || 'Sans-nom'
   const folderName = nom.replace(/[^a-zA-ZÀ-ÿ0-9 _-]/g, '').trim() || 'FAED'
 
@@ -187,7 +184,6 @@ function PdfPreviewModal({ record, apiBase, onClose }) {
     let cancelled = false
     ;(async () => {
       try {
-          setVal(typeof json.total === 'number' ? json.total : 'â€”')
         /* Charger les photos existantes en base64 depuis leurs URLs serveur */
         const photoKeys = ['profilDroit', 'face', 'quartGauche']
         const photoFields = { profilDroit: record.photoProfilDroit, face: record.photoFace, quartGauche: record.photoQuartGauche }
@@ -268,7 +264,6 @@ function PdfPreviewModal({ record, apiBase, onClose }) {
 
   /* Fermer avec Échap */
   useEffect(() => {
-    if (count !== null) { setVal(count); return }
     const handler = e => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
