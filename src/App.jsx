@@ -294,7 +294,8 @@ function AuthenticatedApp({ user, onLogout }) {
             — Fiche n° 01 / Identification
           </div>
 
-          <div className="bg-white shadow-2xl overflow-hidden"
+          <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
+          <div className="bg-white shadow-2xl overflow-hidden min-w-[600px]"
             style={{ border: `1.5px solid ${C.border}`, borderTop: `4px solid ${C.navy3}` }}>
 
             {/* ── EN-TÊTE ─────────────────────────────────────────────── */}
@@ -587,6 +588,7 @@ function AuthenticatedApp({ user, onLogout }) {
             </div>
 
           </div>
+          </div>{/* end overflow-x-auto page 1 */}
         </div>
 
         {/* ══════════════════════════ PAGE 2 ══════════════════════════════ */}
@@ -595,7 +597,8 @@ function AuthenticatedApp({ user, onLogout }) {
             — Fiche n° 02 / Signalement descriptif
           </div>
 
-          <div className="bg-white shadow-2xl overflow-hidden"
+          <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
+          <div className="bg-white shadow-2xl overflow-hidden min-w-[600px]"
             style={{ border: `1.5px solid ${C.border}`, borderTop: `4px solid ${C.gold}` }}>
 
             {/* En-tête page 2 */}
@@ -1046,6 +1049,7 @@ function AuthenticatedApp({ user, onLogout }) {
             </div>
 
           </div>
+          </div>{/* end overflow-x-auto page 2 */}
         </div>
 
       </div>
@@ -1074,7 +1078,15 @@ export default function App() {
   })
 
   const handleLogin  = (u) => setUser(u)
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (user) {
+      try {
+        await fetch(`${API_BASE}/api/auth/logout`, {
+          method: 'POST',
+          headers: { 'X-User-Id': user.id },
+        })
+      } catch { /* on déconnecte quand même si l'API est inaccessible */ }
+    }
     localStorage.removeItem('faed_user')
     setUser(null)
   }
