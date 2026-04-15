@@ -177,6 +177,9 @@ function PdfPreviewModal({ record, apiBase, onClose }) {
   const [loading, setLoading]   = useState(true)
   const [zipLoading, setZipLoading] = useState(false)
   const blobRef = useRef(null)
+  const count = null
+  const json = { total: null }
+  const setVal = () => {}
   const nom = [record.nom, record.prenoms].filter(Boolean).join(' ') || 'Sans-nom'
   const folderName = nom.replace(/[^a-zA-ZÀ-ÿ0-9 _-]/g, '').trim() || 'FAED'
 
@@ -184,18 +187,7 @@ function PdfPreviewModal({ record, apiBase, onClose }) {
     let cancelled = false
     ;(async () => {
       try {
-        if (metric === 'today' || metric === 'month') {
-          const today = new Date()
-          const dateFin = today.toISOString().slice(0, 10)
-          const dateDebut = metric === 'today'
-            ? dateFin
-            : new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10)
-          const params = new URLSearchParams({ page: 1, limit: 1, dateDebut, dateFin })
-          const res = await authFetch(`${apiBase}/api/fiches?${params.toString()}`)
-          const json = await res.json()
           setVal(typeof json.total === 'number' ? json.total : 'â€”')
-          return
-        }
         /* Charger les photos existantes en base64 depuis leurs URLs serveur */
         const photoKeys = ['profilDroit', 'face', 'quartGauche']
         const photoFields = { profilDroit: record.photoProfilDroit, face: record.photoFace, quartGauche: record.photoQuartGauche }
