@@ -172,7 +172,7 @@ const IconPlus = () => (
 )
 
 /* ── Modal Aperçu PDF ────────────────────────────────────────────────────── */
-function PdfPreviewModal({ record, apiBase, onClose }) {
+function PdfPreviewModal({ record, apiBase, onClose, authFetch }) {
   const [pdfUrl, setPdfUrl]     = useState(null)
   const [loading, setLoading]   = useState(true)
   const [zipLoading, setZipLoading] = useState(false)
@@ -224,8 +224,21 @@ function PdfPreviewModal({ record, apiBase, onClose }) {
   }, []) // eslint-disable-line
 
   /* Télécharger PDF seul */
-  const downloadPdf = () => {
+  const logDownload = async (format) => {
+    if (!authFetch) return
+    try {
+      const cible = [record.nom, record.prenoms].filter(Boolean).join(' ') || 'Sans nom'
+      await authFetch(`${apiBase}/api/logs/download`, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ ficheId: record._id, cible, format }),
+      })
+    } catch {}
+  }
+
+  const downloadPdf = async () => {
     if (!blobRef.current) return
+    await logDownload('pdf')
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blobRef.current)
     a.download = `${folderName}.pdf`
@@ -237,6 +250,7 @@ function PdfPreviewModal({ record, apiBase, onClose }) {
     if (!blobRef.current) return
     try {
       setZipLoading(true)
+      await logDownload('zip')
       const zip = new JSZip()
       const folder = zip.folder(folderName)
 
@@ -445,7 +459,7 @@ function RecordCard({ record, apiBase, onOpen, onDelete, canEdit, authFetch, use
     setMotifModal(null)
     if (user?.role === 'agent') {
       const age = Date.now() - new Date(record.createdAt).getTime()
-      if (age > 3 * 60 * 60 * 1000) { setAuthModal({ action:'modifier', motif }); return }
+      if (age > 60 * 60 * 1000) { setAuthModal({ action:'modifier', motif }); return }
     }
     onOpen(record, motif)
   }
@@ -453,7 +467,7 @@ function RecordCard({ record, apiBase, onOpen, onDelete, canEdit, authFetch, use
   return (
     <>
       {showPreview && (
-        <PdfPreviewModal record={record} apiBase={apiBase} onClose={() => setShowPreview(false)} />
+        <PdfPreviewModal record={record} apiBase={apiBase} authFetch={authFetch || fetch} onClose={() => setShowPreview(false)} />
       )}
       {motifModal && (
         <MotifModal
@@ -920,14 +934,6 @@ function PageDossiers({ apiBase, onNew, onOpen, user, authFetch }) {
           <h1 style={{ color: C.navy }} className="text-2xl font-black tracking-tight">Dossiers</h1>
           <p style={{ color: C.muted }} className="text-[11px] mt-0.5">{total} fiche{total!==1?'s':''} enregistrée{total!==1?'s':''}</p>
         </div>
-        {onNew && (
-          <button onClick={onNew}
-            style={{ background: `linear-gradient(135deg, ${C.gold}, ${C.gold2})`, color: C.navy }}
-            className="flex items-center gap-2 px-5 py-2.5 text-[10px] font-black rounded-sm
-              shadow hover:opacity-90 transition-all tracking-wider uppercase">
-            <IconPlus /> Nouvelle Fiche
-          </button>
-        )}
       </div>
 
       {/* ── Barre de filtres ── */}
@@ -2162,3 +2168,4 @@ export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, auth
     </div>
   )
 }
+
