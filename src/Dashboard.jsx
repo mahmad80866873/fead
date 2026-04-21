@@ -1940,9 +1940,15 @@ function Sidebar({ active, setActive, onLogout, user, pendingCount, trashCount, 
   )
 }
 
+const VALID_PAGES = ['accueil', 'dossiers', 'utilisateurs', 'demandes', 'journal', 'corbeille']
+function getPageFromHash() {
+  const hash = window.location.hash.replace('#', '')
+  return VALID_PAGES.includes(hash) ? hash : 'accueil'
+}
+
 /* ── Dashboard principal ─────────────────────────────────────────────────── */
 export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, authFetch, formContent, isFormView, onExitForm }) {
-  const [active, setActive]       = useState('accueil')
+  const [active, setActive]       = useState(getPageFromHash)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [records, setRecords]     = useState([])
   const [total, setTotal]         = useState(0)
@@ -2012,6 +2018,16 @@ export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, auth
 
     return () => stream.close()
   }, [apiBase, user?.id, user?.sessionId, isSA, loadRecent, checkBadges, onLogout])
+
+  useEffect(() => {
+    if (!isFormView) window.location.hash = active
+  }, [active, isFormView])
+
+  useEffect(() => {
+    const handler = () => { if (!isFormView) setActive(getPageFromHash()) }
+    window.addEventListener('hashchange', handler)
+    return () => window.removeEventListener('hashchange', handler)
+  }, [isFormView])
 
   useEffect(() => {
     setSidebarOpen(false)
