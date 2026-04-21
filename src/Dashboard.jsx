@@ -2036,7 +2036,7 @@ export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, auth
       />
 
       {/* Contenu principal */}
-      <main style={{ background:'#f0f4eb' }} className="flex-1 min-w-0 overflow-y-auto relative">
+      <main style={{ background:'#e8f2fc' }} className="flex-1 min-w-0 overflow-y-auto relative">
 
         {/* Top bar */}
         <div style={{

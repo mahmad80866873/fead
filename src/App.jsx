@@ -326,7 +326,7 @@ function AuthenticatedApp({ user, onLogout }) {
                   FAED NIGER
                 </div>
                 <div className="text-[8px] text-slate-400 tracking-widest mt-0.5 uppercase">
-                  Signalement Descriptif
+                  Photographie Signalétique
                 </div>
               </div>
               {/* Type : GN uniquement */}
@@ -376,7 +376,7 @@ function AuthenticatedApp({ user, onLogout }) {
                   <FI name="filDe" value={data.filDe} onChange={onChange} cls="flex-1 min-w-[40px]" />
                   <span style={{ color: C.muted }} className="text-[9px] font-bold shrink-0">et de :</span>
                   <FI name="etDe" value={data.etDe} onChange={onChange} cls="flex-1 min-w-[40px]" />
-                  <span style={{ color: C.muted }} className="text-[9px] font-bold shrink-0">né(e) :</span>
+                  <span style={{ color: C.muted }} className="text-[9px] font-bold shrink-0">Surnom :</span>
                   <FI name="nee" value={data.nee} onChange={onChange} cls="flex-1 min-w-[40px]" />
                 </div>
               </Cell>
@@ -411,15 +411,34 @@ function AuthenticatedApp({ user, onLogout }) {
                 <FI name="lieuNaissance" value={data.lieuNaissance} onChange={onChange} cls="w-full" />
               </Cell>
               <Cell label="Région" cls="flex-1">
-                <select name="region" value={data.region}
-                  onChange={e => setData(p => ({ ...p, region: e.target.value, departement: '' }))}
-                  style={{ color: C.text, borderBottomColor: C.border }}
-                  className="w-full text-[11px] bg-transparent outline-none border-b py-0.5">
-                  <option value="">— Sélectionner —</option>
-                  {Object.keys(REGIONS_DEPARTEMENTS).map(r => (
-                    <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
-                  ))}
-                </select>
+                <div className="flex flex-col gap-1 w-full">
+                  {(() => {
+                    const knownRegions = Object.keys(REGIONS_DEPARTEMENTS)
+                    const inList = knownRegions.includes(data.region)
+                    const isCustom = !inList && data.region !== ''
+                    return <>
+                      <select
+                        value={isCustom ? '__autre' : data.region}
+                        onChange={e => {
+                          if (e.target.value === '__autre') setData(p => ({ ...p, region: ' ', departement: '' }))
+                          else setData(p => ({ ...p, region: e.target.value, departement: '' }))
+                        }}
+                        style={{ color: C.text, borderBottomColor: C.border }}
+                        className="w-full text-[11px] bg-transparent outline-none border-b py-0.5">
+                        <option value="">— Sélectionner —</option>
+                        {knownRegions.map(r => (
+                          <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+                        ))}
+                        <option value="__autre">Autre (saisir)…</option>
+                      </select>
+                      {isCustom && (
+                        <FI name="region" value={data.region.trim()}
+                          onChange={e => setData(p => ({ ...p, region: e.target.value, departement: '' }))}
+                          cls="w-full" placeholder="Saisir la région…" />
+                      )}
+                    </>
+                  })()}
+                </div>
               </Cell>
               <Cell label="Département" cls="flex-1">
                 <div className="flex flex-col gap-1 w-full">
@@ -448,7 +467,7 @@ function AuthenticatedApp({ user, onLogout }) {
                   })()}
                 </div>
               </Cell>
-              <Cell label="Formule" cls="shrink-0" borderRight={false} style={{ width: 110 }}>
+              <Cell label="Formule Digitale" cls="shrink-0" borderRight={false} style={{ width: 130 }}>
                 <FI name="formule" value={data.formule} onChange={onChange} cls="w-full" />
               </Cell>
             </div>
@@ -553,16 +572,6 @@ function AuthenticatedApp({ user, onLogout }) {
                     </div>
                   ))}
                 </div>
-                {/* 3 cases Commentaire */}
-                <div className="flex" style={{ borderTop: `1px solid ${C.border}` }}>
-                  {[['commentaireDroit1','Commentaire 1'],['commentaireDroit2','Commentaire 2'],['commentaireDroit3','Commentaire 3']].map(([n,l], i) => (
-                    <div key={n} className="flex-1 px-2 py-1"
-                      style={{ borderRight: i < 2 ? `1px solid ${C.border}` : 'none' }}>
-                      <div style={{ color: C.muted }} className="text-[7px] font-bold uppercase mb-1">{l}</div>
-                      <FI name={n} value={data[n]} onChange={onChange} cls="w-full text-[9px]" />
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
 
@@ -589,16 +598,6 @@ function AuthenticatedApp({ user, onLogout }) {
                     </div>
                   ))}
                 </div>
-                {/* 3 cases Commentaire */}
-                <div className="flex" style={{ borderTop: `1px solid ${C.border}` }}>
-                  {[['commentaireGauche1','Commentaire 1'],['commentaireGauche2','Commentaire 2'],['commentaireGauche3','Commentaire 3']].map(([n,l], i) => (
-                    <div key={n} className="flex-1 px-2 py-1"
-                      style={{ borderRight: i < 2 ? `1px solid ${C.border}` : 'none' }}>
-                      <div style={{ color: C.muted }} className="text-[7px] font-bold uppercase mb-1">{l}</div>
-                      <FI name={n} value={data[n]} onChange={onChange} cls="w-full text-[9px]" />
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
 
@@ -609,7 +608,7 @@ function AuthenticatedApp({ user, onLogout }) {
         {/* ══════════════════════════ PAGE 2 ══════════════════════════════ */}
         <div>
           <div style={{ color: C.gold2 }} className="text-[9px] font-bold tracking-[0.3em] uppercase mb-2 pl-1">
-            — Fiche n° 02 / Signalement descriptif
+            — Fiche n° 02 / Photographie signalétique
           </div>
 
           <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
@@ -624,7 +623,7 @@ function AuthenticatedApp({ user, onLogout }) {
                   Notice Individuelle
                 </div>
                 <div className="text-white text-[15px] font-black tracking-wide uppercase">
-                  Signalement Descriptif
+                  Photographie Signalétique
                 </div>
               </div>
               <div style={{ color: 'rgba(255,255,255,0.15)' }} className="text-5xl font-black select-none">02</div>

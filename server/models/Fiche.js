@@ -169,7 +169,7 @@ const FicheSchema = new mongoose.Schema({
 })
 
 /* Index pour la recherche */
-FicheSchema.index({ nom: 'text', prenoms: 'text', service: 'text', noDossier: 'text' })
+FicheSchema.index({ nom: 'text', prenoms: 'text', service: 'text', noDossier: 'text', formule: 'text' })
 FicheSchema.index({ createdAt: -1 })
 
 export default mongoose.model('Fiche', FicheSchema)
