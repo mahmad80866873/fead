@@ -40,13 +40,9 @@ router.post('/login', async (req, res) => {
     const ok = await user.verifyPassword(password)
     if (!ok) return res.status(401).json({ error: 'Identifiants incorrects.' })
 
-    /* 2FA activée → envoyer OTP par email */
-    if (user.twoFactorEnabled) {
-      if (!user.email) {
-        return res.status(400).json({
-          error: 'Aucun email associé à ce compte. Contactez l\'administrateur.'
-        })
-      }
+    /* 2FA activée → envoyer OTP par email (uniquement si SMTP configuré et email présent) */
+    const smtpReady = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
+    if (user.twoFactorEnabled && smtpReady && user.email) {
       const code = generateCode()
       const pendingToken = makePendingToken()
       setPending(pendingToken, {
@@ -54,20 +50,23 @@ router.post('/login', async (req, res) => {
         code,
         deviceLabel: deviceLabel || req.headers['user-agent'],
       })
+      let sent = true
       try {
         await sendOtpEmail(user.email, code)
       } catch (mailErr) {
         pendingOTP.delete(pendingToken)
+        sent = false
         console.error('[2FA email]', mailErr.message)
-        return res.status(500).json({ error: mailErr.message })
       }
-      /* Masquer partiellement l'email pour affichage côté client */
-      const [name, domain] = user.email.split('@')
-      const maskedEmail = name.slice(0, 2) + '***@' + domain
-      return res.json({ twoFactorRequired: true, pendingToken, maskedEmail })
+      if (sent) {
+        const [name, domain] = user.email.split('@')
+        const maskedEmail = name.slice(0, 2) + '***@' + domain
+        return res.json({ twoFactorRequired: true, pendingToken, maskedEmail })
+      }
+      /* Si l'envoi échoue, on laisse passer sans 2FA plutôt que de bloquer */
     }
 
-    /* Pas de 2FA → session immédiate */
+    /* Pas de 2FA (ou SMTP non configuré) → session immédiate */
     Object.assign(user, { lastLogin: new Date(), ...createSession(deviceLabel || req.headers['user-agent']) })
     await user.save()
     await log(user, 'login', { details: 'Connexion', ip: req.ip })
