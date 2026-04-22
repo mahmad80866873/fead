@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { authenticator } from 'otplib'
+import speakeasy from 'speakeasy'
 import QRCode from 'qrcode'
 import User from '../models/User.js'
 import { log } from '../utils/logger.js'
@@ -75,7 +75,7 @@ router.post('/verify-2fa', async (req, res) => {
     const user = await User.findById(entry.userId)
     if (!user || !user.actif) return res.status(401).json({ error: 'Utilisateur introuvable.' })
 
-    const valid = authenticator.verify({ token: code.replace(/\s/g, ''), secret: user.twoFactorSecret })
+    const valid = speakeasy.totp.verify({ secret: user.twoFactorSecret, encoding: 'base32', token: code.replace(/\s/g, ''), window: 1 })
     if (!valid) return res.status(401).json({ error: 'Code incorrect.' })
 
     pending2FA.delete(pendingToken)
@@ -123,9 +123,9 @@ router.post('/logout', requireAuth, async (req, res) => {
 /* ── Générer le secret 2FA + QR code ──────────────────────────────────────── */
 router.get('/2fa/setup', requireAuth, async (req, res) => {
   try {
-    const secret = authenticator.generateSecret()
-    const otpauth = authenticator.keyuri(req.user.matricule, 'FAED Niger', secret)
-    const qrDataUrl = await QRCode.toDataURL(otpauth)
+    const secretObj = speakeasy.generateSecret({ name: `FAED Niger:${req.user.matricule}`, issuer: 'FAED Niger', length: 20 })
+    const secret = secretObj.base32
+    const qrDataUrl = await QRCode.toDataURL(secretObj.otpauth_url)
 
     /* Stocker le secret temporairement (sera confirmé ensuite) */
     await User.updateOne({ _id: req.user._id }, { $set: { twoFactorSecret: secret } })
@@ -146,7 +146,7 @@ router.post('/2fa/confirm', requireAuth, async (req, res) => {
     const user = await User.findById(req.user._id)
     if (!user?.twoFactorSecret) return res.status(400).json({ error: 'Lancez d\'abord la configuration.' })
 
-    const valid = authenticator.verify({ token: code.replace(/\s/g, ''), secret: user.twoFactorSecret })
+    const valid = speakeasy.totp.verify({ secret: user.twoFactorSecret, encoding: 'base32', token: code.replace(/\s/g, ''), window: 1 })
     if (!valid) return res.status(400).json({ error: 'Code incorrect. Vérifiez votre application.' })
 
     user.twoFactorEnabled = true
@@ -168,7 +168,7 @@ router.post('/2fa/disable', requireAuth, async (req, res) => {
     const user = await User.findById(req.user._id)
     if (!user?.twoFactorEnabled) return res.status(400).json({ error: '2FA non activée.' })
 
-    const valid = authenticator.verify({ token: code.replace(/\s/g, ''), secret: user.twoFactorSecret })
+    const valid = speakeasy.totp.verify({ secret: user.twoFactorSecret, encoding: 'base32', token: code.replace(/\s/g, ''), window: 1 })
     if (!valid) return res.status(400).json({ error: 'Code incorrect.' })
 
     user.twoFactorEnabled = false

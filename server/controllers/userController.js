@@ -3,7 +3,7 @@ import User from '../models/User.js'
 /* ── GET /api/users ─────────────────────────────────────────────────────── */
 export async function listUsers(req, res) {
   try {
-    const users = await User.find({}).select('-password').sort({ createdAt: -1 }).lean()
+    const users = await User.find({}).select('-password -twoFactorSecret').sort({ createdAt: -1 }).lean()
     res.json(users)
   } catch (err) {
     res.status(500).json({ error: 'Erreur serveur.' })
