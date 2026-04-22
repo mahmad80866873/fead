@@ -303,7 +303,7 @@ export default function Login({ onLogin }) {
             <div className="l-fade-2">
               <label style={{ color:'rgba(196,154,40,0.65)' }}
                 className="block text-[8px] font-black uppercase tracking-widest mb-1.5">
-                Matricule
+                Matricule ou Email
               </label>
               <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-sm transition-all"
                 style={{ border:'1px solid rgba(255,255,255,0.08)', background:'rgba(255,255,255,0.03)' }}
@@ -315,7 +315,7 @@ export default function Login({ onLogin }) {
                   <circle cx="12" cy="7" r="4"/>
                 </svg>
                 <input type="text" value={matricule} onChange={e => setMatricule(e.target.value)}
-                  placeholder="Votre matricule" autoComplete="username"
+                  placeholder="Matricule ou adresse email" autoComplete="username"
                   className="flex-1 bg-transparent outline-none text-white text-[12px]
                     placeholder:text-slate-700 font-medium" />
               </div>

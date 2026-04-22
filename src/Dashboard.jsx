@@ -1108,9 +1108,17 @@ function UserModal({ user, onSave, onClose }) {
             </div>
           )}
           {!isNew && (
-            <div>
-              <label style={{ color: C.muted }} className="block text-[9px] font-bold uppercase tracking-wider mb-1">Nouveau mot de passe (laisser vide pour ne pas changer)</label>
-              {inp('password', { type:'password', placeholder:'••••••••' })}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label style={{ color: C.muted }} className="block text-[9px] font-bold uppercase tracking-wider mb-1">Matricule</label>
+                <input value={form.matricule || ''} readOnly
+                  style={{ border:`1px solid ${C.border}`, color: C.muted, background:'#f8fafc' }}
+                  className="w-full px-2 py-1.5 text-[11px] rounded-sm outline-none font-mono cursor-default" />
+              </div>
+              <div>
+                <label style={{ color: C.muted }} className="block text-[9px] font-bold uppercase tracking-wider mb-1">Nouveau mot de passe (vide = inchangé)</label>
+                {inp('password', { type:'password', placeholder:'••••••••' })}
+              </div>
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">

@@ -31,10 +31,16 @@ router.post('/login', async (req, res) => {
   try {
     const { matricule, password, deviceLabel } = req.body
     if (!matricule || !password) {
-      return res.status(400).json({ error: 'Matricule et mot de passe requis.' })
+      return res.status(400).json({ error: 'Identifiant et mot de passe requis.' })
     }
 
-    const user = await User.findOne({ matricule: matricule.toUpperCase(), actif: true })
+    const identifier = matricule.trim()
+    const user = await User.findOne({
+      $or: [
+        { matricule: identifier.toUpperCase(), actif: true },
+        { email: identifier.toLowerCase(), actif: true },
+      ],
+    })
     if (!user) return res.status(401).json({ error: 'Identifiants incorrects.' })
 
     const ok = await user.verifyPassword(password)
