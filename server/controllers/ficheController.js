@@ -37,7 +37,16 @@ export async function listFiches(req, res) {
     const q = req.query.q?.trim()
 
     const filter = { deleted: { $ne: true } }
-    if (q) filter.$text = { $search: q }
+    if (q) {
+      const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+      filter.$or = [
+        { nom: regex }, { prenoms: regex }, { epouse: regex },
+        { nee: regex }, { service: regex }, { noDossier: regex },
+        { formule: regex }, { nProcedure: regex }, { nIU: regex },
+        { lieuNaissance: regex }, { residence: regex }, { profession: regex },
+        { agentSaisie: regex }, { ficheEtabliePar: regex },
+      ]
+    }
     if (req.user?.role === 'agent') filter.createdBy = req.user._id
     if (req.query.type === 'pn') filter.pn = true
     if (req.query.type === 'gn') filter.gn = true

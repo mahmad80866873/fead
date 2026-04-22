@@ -370,7 +370,7 @@ function AuthenticatedApp({ user, onLogout }) {
                   cls="w-full" type="date" />
               </Cell>
 
-              <Cell label="Filiation — Fils/Fille de … et de … né(e)" cls="flex-1">
+              <Cell label="Filiation — Fils/Fille de … et de … Surnom" cls="flex-1">
                 <div className="flex items-center gap-2 flex-wrap w-full">
                   <span style={{ color: C.muted }} className="text-[9px] font-bold shrink-0">Fils de :</span>
                   <FI name="filDe" value={data.filDe} onChange={onChange} cls="flex-1 min-w-[40px]" />
