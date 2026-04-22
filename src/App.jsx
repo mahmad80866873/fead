@@ -156,7 +156,7 @@ function makeAuthFetch(user, onSessionExpired) {
 }
 
 /* ── App authentifiée ─────────────────────────────────────────────────────── */
-function AuthenticatedApp({ user, onLogout }) {
+function AuthenticatedApp({ user, onLogout, onUserUpdate }) {
   const authFetch = makeAuthFetch(user, onLogout)
   /* Navigation : 'dashboard' | 'form' */
   const [view, setView]     = useState('dashboard')
@@ -1076,6 +1076,7 @@ function AuthenticatedApp({ user, onLogout }) {
       onNew={handleNew}
       onOpen={handleOpen}
       onLogout={onLogout}
+      onUserUpdate={onUserUpdate}
       user={user}
       authFetch={authFetch}
       formContent={formContent}
@@ -1096,7 +1097,14 @@ export default function App() {
     setUser(null)
   }
 
-  const handleLogin  = (u) => setUser(u)
+  const handleLogin      = (u) => setUser(u)
+  const handleUserUpdate = (patch) => {
+    setUser(prev => {
+      const updated = { ...prev, ...patch }
+      localStorage.setItem('faed_user', JSON.stringify(updated))
+      return updated
+    })
+  }
   const handleLogout = async () => {
     if (user) {
       try {
@@ -1155,5 +1163,5 @@ export default function App() {
   }, [user?.id, user?.sessionId])
 
   if (!user) return <Login onLogin={handleLogin} />
-  return <AuthenticatedApp user={user} onLogout={handleLogout} />
+  return <AuthenticatedApp user={user} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />
 }

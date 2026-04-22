@@ -1064,24 +1064,29 @@ const ROLE_COLORS = {
 function UserModal({ user, onSave, onClose }) {
   const isNew = !user
   const [form, setForm] = useState(isNew
-    ? { matricule:'', password:'', nom:'', prenom:'', role:'agent', service:'', actif:true }
-    : { ...user, password:'' }
+    ? { matricule:'', password:'', nom:'', prenom:'', role:'agent', service:'', email:'', telephone:'', actif:true }
+    : { ...user, password:'', email: user.email||'', telephone: user.telephone||'' }
   )
   const [saving, setSaving] = useState(false)
   const [err, setErr]       = useState('')
 
   const set = (k,v) => setForm(p => ({ ...p, [k]: v }))
+  const inp = (k, opts={}) => (
+    <input value={form[k]||''} onChange={e=>set(k,e.target.value)} {...opts}
+      style={{ border:`1px solid ${C.border}`, color: C.text }}
+      className="w-full px-2 py-1.5 text-[11px] rounded-sm outline-none focus:border-[#C49A28]" />
+  )
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background:'rgba(0,0,0,0.6)' }}
       onClick={e => e.target===e.currentTarget && onClose()}>
       <div style={{ border:`1.5px solid ${C.border}` }}
-        className="bg-white rounded-sm shadow-2xl w-full max-w-md">
+        className="bg-white rounded-sm shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
 
         {/* Header */}
         <div style={{ background: C.navy, color: C.gold }}
-          className="px-5 py-3 flex items-center justify-between">
+          className="px-5 py-3 flex items-center justify-between sticky top-0 z-10">
           <span className="text-[11px] font-black uppercase tracking-wider">
             {isNew ? 'Nouvel utilisateur' : 'Modifier l\'utilisateur'}
           </span>
@@ -1094,39 +1099,28 @@ function UserModal({ user, onSave, onClose }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label style={{ color: C.muted }} className="block text-[9px] font-bold uppercase tracking-wider mb-1">Matricule *</label>
-                <input value={form.matricule} onChange={e=>set('matricule',e.target.value)}
-                  style={{ border:`1px solid ${C.border}`, color: C.text }}
-                  className="w-full px-2 py-1.5 text-[11px] rounded-sm outline-none focus:border-[#C49A28]" />
+                {inp('matricule')}
               </div>
               <div>
                 <label style={{ color: C.muted }} className="block text-[9px] font-bold uppercase tracking-wider mb-1">Mot de passe *</label>
-                <input type="password" value={form.password} onChange={e=>set('password',e.target.value)}
-                  style={{ border:`1px solid ${C.border}`, color: C.text }}
-                  className="w-full px-2 py-1.5 text-[11px] rounded-sm outline-none focus:border-[#C49A28]" />
+                {inp('password', { type:'password' })}
               </div>
             </div>
           )}
           {!isNew && (
             <div>
               <label style={{ color: C.muted }} className="block text-[9px] font-bold uppercase tracking-wider mb-1">Nouveau mot de passe (laisser vide pour ne pas changer)</label>
-              <input type="password" value={form.password} onChange={e=>set('password',e.target.value)}
-                placeholder="••••••••"
-                style={{ border:`1px solid ${C.border}`, color: C.text }}
-                className="w-full px-2 py-1.5 text-[11px] rounded-sm outline-none focus:border-[#C49A28]" />
+              {inp('password', { type:'password', placeholder:'••••••••' })}
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label style={{ color: C.muted }} className="block text-[9px] font-bold uppercase tracking-wider mb-1">Prénom</label>
-              <input value={form.prenom||''} onChange={e=>set('prenom',e.target.value)}
-                style={{ border:`1px solid ${C.border}`, color: C.text }}
-                className="w-full px-2 py-1.5 text-[11px] rounded-sm outline-none focus:border-[#C49A28]" />
+              {inp('prenom')}
             </div>
             <div>
               <label style={{ color: C.muted }} className="block text-[9px] font-bold uppercase tracking-wider mb-1">Nom</label>
-              <input value={form.nom||''} onChange={e=>set('nom',e.target.value)}
-                style={{ border:`1px solid ${C.border}`, color: C.text }}
-                className="w-full px-2 py-1.5 text-[11px] rounded-sm outline-none focus:border-[#C49A28]" />
+              {inp('nom')}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -1142,9 +1136,17 @@ function UserModal({ user, onSave, onClose }) {
             </div>
             <div>
               <label style={{ color: C.muted }} className="block text-[9px] font-bold uppercase tracking-wider mb-1">Service</label>
-              <input value={form.service||''} onChange={e=>set('service',e.target.value)}
-                style={{ border:`1px solid ${C.border}`, color: C.text }}
-                className="w-full px-2 py-1.5 text-[11px] rounded-sm outline-none focus:border-[#C49A28]" />
+              {inp('service')}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label style={{ color: C.muted }} className="block text-[9px] font-bold uppercase tracking-wider mb-1">Email</label>
+              {inp('email', { type:'email', placeholder:'exemple@gn.ne' })}
+            </div>
+            <div>
+              <label style={{ color: C.muted }} className="block text-[9px] font-bold uppercase tracking-wider mb-1">Téléphone</label>
+              {inp('telephone', { type:'tel', placeholder:'+227 00 00 00 00' })}
             </div>
           </div>
           {!isNew && (
@@ -1176,6 +1178,189 @@ function UserModal({ user, onSave, onClose }) {
             className="px-5 py-1.5 text-[10px] font-black rounded-sm hover:opacity-90 disabled:opacity-50">
             {saving ? 'Enregistrement…' : 'Enregistrer'}
           </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Modal Mon Compte (gestion 2FA) ──────────────────────────────────────── */
+function MonCompteModal({ user, apiBase, authFetch, onClose, onUpdate }) {
+  const [step, setStep]       = useState('idle')   // idle | setup | confirm | disable
+  const [qrUrl, setQrUrl]     = useState('')
+  const [secret, setSecret]   = useState('')
+  const [code, setCode]       = useState('')
+  const [msg, setMsg]         = useState('')
+  const [err, setErr]         = useState('')
+  const [loading, setLoading] = useState(false)
+  const is2FA = user?.twoFactorEnabled
+
+  const call = async (path, opts={}) => {
+    setErr(''); setLoading(true)
+    try {
+      const res = await authFetch(`${apiBase}${path}`, opts)
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || 'Erreur.')
+      return json
+    } finally { setLoading(false) }
+  }
+
+  const startSetup = async () => {
+    try {
+      const json = await call('/api/auth/2fa/setup')
+      setQrUrl(json.qrDataUrl); setSecret(json.secret); setStep('setup')
+    } catch(e) { setErr(e.message) }
+  }
+
+  const confirm2FA = async () => {
+    try {
+      await call('/api/auth/2fa/confirm', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ code }),
+      })
+      setMsg('Double authentification activée avec succès.')
+      setStep('idle'); setCode('')
+      onUpdate({ twoFactorEnabled: true })
+    } catch(e) { setErr(e.message) }
+  }
+
+  const disable2FA = async () => {
+    try {
+      await call('/api/auth/2fa/disable', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ code }),
+      })
+      setMsg('Double authentification désactivée.')
+      setStep('idle'); setCode('')
+      onUpdate({ twoFactorEnabled: false })
+    } catch(e) { setErr(e.message) }
+  }
+
+  const iBtn = 'w-full px-4 py-2 text-[10px] font-black rounded-sm uppercase tracking-wider transition-all hover:opacity-90 disabled:opacity-50'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background:'rgba(0,0,0,0.65)' }}
+      onClick={e => e.target===e.currentTarget && onClose()}>
+      <div style={{ border:`1.5px solid ${C.border}`, background:'#fff' }}
+        className="rounded-sm shadow-2xl w-full max-w-sm">
+
+        {/* Header */}
+        <div style={{ background: C.navy, color: C.gold }}
+          className="px-5 py-3 flex items-center justify-between">
+          <span className="text-[11px] font-black uppercase tracking-wider">Mon Compte</span>
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-lg leading-none">✕</button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          {/* Infos */}
+          <div style={{ background:'#f8fafc', border:`1px solid ${C.border}` }} className="rounded-sm px-3 py-2 space-y-0.5">
+            <div style={{ color: C.muted }} className="text-[9px] uppercase font-bold tracking-wider">Matricule</div>
+            <div style={{ color: C.text }} className="text-[12px] font-bold font-mono">{user?.matricule}</div>
+          </div>
+
+          {/* Statut 2FA */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span style={{ color: C.text }} className="text-[11px] font-bold">Double authentification (2FA)</span>
+              <span style={{
+                background: is2FA ? 'rgba(22,163,74,0.12)' : 'rgba(185,28,28,0.1)',
+                color: is2FA ? '#16a34a' : '#b91c1c',
+                border: `1px solid ${is2FA ? 'rgba(22,163,74,0.3)' : 'rgba(185,28,28,0.3)'}`,
+              }} className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-sm">
+                {is2FA ? 'Activée' : 'Désactivée'}
+              </span>
+            </div>
+
+            {step === 'idle' && !is2FA && (
+              <button onClick={startSetup} disabled={loading}
+                style={{ background: C.navy, color: C.gold }} className={iBtn}>
+                {loading ? 'Chargement…' : 'Activer la 2FA'}
+              </button>
+            )}
+
+            {step === 'idle' && is2FA && (
+              <button onClick={() => { setStep('disable'); setCode(''); setErr('') }}
+                style={{ background:'#b91c1c', color:'#fff' }} className={iBtn}>
+                Désactiver la 2FA
+              </button>
+            )}
+
+            {/* Setup : QR code */}
+            {step === 'setup' && (
+              <div className="space-y-3">
+                <p style={{ color: C.muted }} className="text-[10px] leading-relaxed">
+                  Scannez ce QR code avec <strong>Google Authenticator</strong>, <strong>Authy</strong> ou toute application compatible TOTP.
+                </p>
+                {qrUrl && <img src={qrUrl} alt="QR 2FA" className="mx-auto w-40 h-40 rounded-sm border" style={{ border:`1px solid ${C.border}` }} />}
+                <div style={{ background:'#f8fafc', border:`1px solid ${C.border}` }} className="px-3 py-2 rounded-sm">
+                  <div style={{ color: C.muted }} className="text-[8px] uppercase font-bold tracking-wider mb-1">Clé manuelle</div>
+                  <div style={{ color: C.text }} className="text-[10px] font-mono break-all">{secret}</div>
+                </div>
+                <div>
+                  <label style={{ color: C.muted }} className="block text-[9px] font-bold uppercase tracking-wider mb-1">
+                    Code de confirmation (6 chiffres)
+                  </label>
+                  <input type="text" inputMode="numeric" maxLength={7} value={code}
+                    onChange={e => { setCode(e.target.value); setErr('') }}
+                    placeholder="000 000"
+                    style={{ border:`1px solid ${C.border}`, color: C.text }}
+                    className="w-full px-2 py-1.5 text-[14px] font-mono text-center tracking-widest rounded-sm outline-none focus:border-[#C49A28]" />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setStep('idle')}
+                    style={{ border:`1px solid ${C.border}`, color: C.muted }}
+                    className="flex-1 px-3 py-1.5 text-[10px] font-bold rounded-sm hover:bg-gray-50">
+                    Annuler
+                  </button>
+                  <button onClick={confirm2FA} disabled={loading || code.replace(/\s/g,'').length < 6}
+                    style={{ background: C.navy, color: C.gold }}
+                    className="flex-1 px-3 py-1.5 text-[10px] font-black rounded-sm hover:opacity-90 disabled:opacity-50">
+                    {loading ? 'Vérification…' : 'Confirmer'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Désactivation */}
+            {step === 'disable' && (
+              <div className="space-y-3">
+                <p style={{ color: C.muted }} className="text-[10px] leading-relaxed">
+                  Entrez le code de votre application pour confirmer la désactivation.
+                </p>
+                <input type="text" inputMode="numeric" maxLength={7} value={code}
+                  onChange={e => { setCode(e.target.value); setErr('') }}
+                  placeholder="000 000"
+                  style={{ border:`1px solid ${C.border}`, color: C.text }}
+                  className="w-full px-2 py-1.5 text-[14px] font-mono text-center tracking-widest rounded-sm outline-none focus:border-[#C49A28]" />
+                <div className="flex gap-2">
+                  <button onClick={() => setStep('idle')}
+                    style={{ border:`1px solid ${C.border}`, color: C.muted }}
+                    className="flex-1 px-3 py-1.5 text-[10px] font-bold rounded-sm hover:bg-gray-50">
+                    Annuler
+                  </button>
+                  <button onClick={disable2FA} disabled={loading || code.replace(/\s/g,'').length < 6}
+                    style={{ background:'#b91c1c', color:'#fff' }}
+                    className="flex-1 px-3 py-1.5 text-[10px] font-black rounded-sm hover:opacity-90 disabled:opacity-50">
+                    {loading ? 'Vérification…' : 'Désactiver'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {err && (
+              <div style={{ background:'rgba(185,28,28,0.08)', border:'1px solid rgba(185,28,28,0.3)' }}
+                className="flex items-center gap-2 px-3 py-2 rounded-sm mt-2">
+                <span className="text-red-600 text-[10px]">{err}</span>
+              </div>
+            )}
+            {msg && (
+              <div style={{ background:'rgba(22,163,74,0.08)', border:'1px solid rgba(22,163,74,0.3)' }}
+                className="flex items-center gap-2 px-3 py-2 rounded-sm mt-2">
+                <span className="text-green-700 text-[10px]">{msg}</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -1736,7 +1921,7 @@ const IconClipboard = () => (
   </svg>
 )
 
-function Sidebar({ active, setActive, onLogout, user, pendingCount, trashCount, mobileOpen, onClose }) {
+function Sidebar({ active, setActive, onLogout, onMonCompte, user, pendingCount, trashCount, mobileOpen, onClose }) {
   const isSA = user?.role === 'superadmin'
   const navItems = [
     { id:'accueil',      label:'Accueil',       icon:<IconHome />,      badge: 0 },
@@ -1811,6 +1996,15 @@ function Sidebar({ active, setActive, onLogout, user, pendingCount, trashCount, 
               </div>
             </div>
           )}
+          <button
+            onClick={() => { onClose?.(); onMonCompte?.() }}
+            style={{ color:'rgba(255,255,255,0.3)' }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-left dash-nav-btn text-[11px] font-semibold tracking-wide">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 shrink-0">
+              <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+            </svg>
+            Mon Compte
+          </button>
           <button
             onClick={() => {
               if (window.confirm('Se déconnecter ?')) {
@@ -1926,6 +2120,16 @@ function Sidebar({ active, setActive, onLogout, user, pendingCount, trashCount, 
           </div>
         )}
         <button
+          onClick={() => onMonCompte?.()}
+          style={{ color:'rgba(255,255,255,0.3)' }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-left
+            dash-nav-btn text-[11px] font-semibold tracking-wide">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 shrink-0">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+          </svg>
+          Mon Compte
+        </button>
+        <button
           onClick={() => {
             if (window.confirm('Se déconnecter ?')) {
               onClose?.()
@@ -1952,14 +2156,15 @@ function getPageFromHash() {
 }
 
 /* ── Dashboard principal ─────────────────────────────────────────────────── */
-export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, authFetch, formContent, isFormView, onExitForm }) {
-  const [active, setActive]       = useState(getPageFromHash)
+export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, authFetch, formContent, isFormView, onExitForm, onUserUpdate }) {
+  const [active, setActive]           = useState(getPageFromHash)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [records, setRecords]     = useState([])
-  const [total, setTotal]         = useState(0)
-  const [fetching, setFetching]   = useState(false)
-  const [pendingCount, setPendingCount] = useState(0)  // badge sidebar demandes
-  const [trashCount, setTrashCount]     = useState(0)  // badge corbeille
+  const [monCompteOpen, setMonCompteOpen] = useState(false)
+  const [records, setRecords]         = useState([])
+  const [total, setTotal]             = useState(0)
+  const [fetching, setFetching]       = useState(false)
+  const [pendingCount, setPendingCount] = useState(0)
+  const [trashCount, setTrashCount]     = useState(0)
   const isSA     = user?.role === 'superadmin'
   const isInvite = user?.role === 'invite'
 
@@ -2044,11 +2249,23 @@ export default function Dashboard({ apiBase, onNew, onOpen, onLogout, user, auth
       <MainHex />
       <ScanLine />
 
+      {/* Mon Compte modal (2FA) */}
+      {monCompteOpen && (
+        <MonCompteModal
+          user={user}
+          apiBase={apiBase}
+          authFetch={authFetch}
+          onClose={() => setMonCompteOpen(false)}
+          onUpdate={(patch) => onUserUpdate?.(patch)}
+        />
+      )}
+
       {/* Sidebar */}
       <Sidebar
         active={active}
         setActive={id => { if (isFormView) onExitForm?.(); setActive(id) }}
         onLogout={onLogout}
+        onMonCompte={() => setMonCompteOpen(true)}
         user={user}
         pendingCount={pendingCount}
         trashCount={trashCount}

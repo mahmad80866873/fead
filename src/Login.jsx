@@ -69,6 +69,10 @@ export default function Login({ onLogin }) {
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState('')
 
+  /* 2FA step 2 */
+  const [pendingToken, setPendingToken] = useState(null)
+  const [otpCode, setOtpCode]           = useState('')
+
   const handleSubmit = async e => {
     e.preventDefault()
     if (!matricule.trim() || !password.trim()) { setError('Veuillez remplir tous les champs.'); return }
@@ -84,6 +88,10 @@ export default function Login({ onLogin }) {
       })
       const json = await res.json()
       if (!res.ok) { setError(json.error || 'Identifiants incorrects.'); return }
+      if (json.twoFactorRequired) {
+        setPendingToken(json.pendingToken)
+        return
+      }
       localStorage.setItem('faed_user', JSON.stringify(json.user))
       onLogin(json.user)
     } catch {
@@ -91,6 +99,111 @@ export default function Login({ onLogin }) {
     } finally { setLoading(false) }
   }
 
+  const handle2FA = async e => {
+    e.preventDefault()
+    const code = otpCode.replace(/\s/g, '')
+    if (code.length !== 6) { setError('Le code doit contenir 6 chiffres.'); return }
+    try {
+      setLoading(true); setError('')
+      const res = await fetch(`${API_BASE}/api/auth/verify-2fa`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pendingToken, code }),
+      })
+      const json = await res.json()
+      if (!res.ok) { setError(json.error || 'Code incorrect.'); return }
+      localStorage.setItem('faed_user', JSON.stringify(json.user))
+      onLogin(json.user)
+    } catch {
+      setError("Impossible de contacter le serveur.")
+    } finally { setLoading(false) }
+  }
+
+  /* ══ Écran step 2 : saisie du code OTP ══ */
+  if (pendingToken) return (
+    <>
+      <style>{STYLES}</style>
+      <div className="min-h-screen flex items-center justify-center font-sans overflow-hidden relative"
+        style={{ background:`linear-gradient(145deg, #060e03 0%, ${C.navy2} 50%, ${C.navy3} 100%)` }}>
+        <HexBg />
+        <div style={{ position:'absolute', top:'40%', left:'50%', transform:'translate(-50%,-50%)',
+          width:600, height:400, borderRadius:'50%',
+          background:'radial-gradient(ellipse, rgba(28,58,14,0.5) 0%, transparent 70%)',
+          filter:'blur(50px)', pointerEvents:'none', zIndex:1 }} />
+
+        <div className="relative w-full max-w-[400px] mx-4 l-fade"
+          style={{ zIndex:2, background:'rgba(8,20,4,0.92)', border:`1px solid rgba(196,154,40,0.25)`,
+            borderTop:`3px solid ${C.gold}`, borderRadius:6, backdropFilter:'blur(20px)',
+            boxShadow:'0 40px 100px rgba(0,0,0,0.7)' }}>
+
+          <div className="flex flex-col items-center pt-8 pb-4">
+            <div style={{ width:52, height:52, borderRadius:'50%', background:'rgba(196,154,40,0.1)',
+              border:`2px solid rgba(196,154,40,0.4)`, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" style={{ width:24, height:24 }}>
+                <rect x="5" y="11" width="14" height="10" rx="2"/>
+                <path d="M8 11V7a4 4 0 018 0v4"/>
+                <circle cx="12" cy="16" r="1" fill={C.gold}/>
+              </svg>
+            </div>
+            <div style={{ color: C.gold }} className="text-[15px] font-black tracking-wider uppercase mt-3">
+              Double Authentification
+            </div>
+            <div style={{ color:'rgba(196,154,40,0.45)' }} className="text-[9px] tracking-widest uppercase mt-1 text-center px-6">
+              Entrez le code à 6 chiffres de votre application d'authentification
+            </div>
+          </div>
+
+          <div style={{ height:1, background:`linear-gradient(90deg,transparent,rgba(196,154,40,0.3),transparent)`, margin:'0 24px' }} />
+
+          <form onSubmit={handle2FA} className="px-8 py-6 space-y-4">
+            <div>
+              <label style={{ color:'rgba(196,154,40,0.65)' }}
+                className="block text-[8px] font-black uppercase tracking-widest mb-1.5">
+                Code de vérification
+              </label>
+              <input
+                type="text" inputMode="numeric" maxLength={7} value={otpCode}
+                onChange={e => { setOtpCode(e.target.value); setError('') }}
+                placeholder="000 000" autoFocus
+                className="w-full text-center text-[22px] font-black tracking-[0.4em] bg-transparent outline-none text-white py-3 rounded-sm"
+                style={{ border:`1px solid rgba(196,154,40,0.35)`, background:'rgba(196,154,40,0.05)',
+                  letterSpacing:'0.4em' }}
+              />
+            </div>
+
+            {error && (
+              <div style={{ background:'rgba(185,28,28,0.12)', border:'1px solid rgba(185,28,28,0.4)' }}
+                className="flex items-center gap-2 px-3 py-2 rounded-sm">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                  className="w-3.5 h-3.5 text-red-400 shrink-0">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span className="text-red-400 text-[10px]">{error}</span>
+              </div>
+            )}
+
+            <button type="submit" disabled={loading}
+              style={{ background:`linear-gradient(135deg,${C.gold},#a8791e,${C.gold2})`, color: C.navy,
+                boxShadow:`0 4px 20px rgba(196,154,40,0.4)` }}
+              className="w-full flex items-center justify-center gap-2 py-3 font-black text-[11px]
+                uppercase tracking-widest rounded-sm hover:opacity-90 disabled:opacity-50 transition-all">
+              {loading
+                ? <><span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"/>Vérification…</>
+                : 'Valider le code'}
+            </button>
+
+            <button type="button" onClick={() => { setPendingToken(null); setOtpCode(''); setError('') }}
+              style={{ color:'rgba(196,154,40,0.45)' }}
+              className="w-full text-[9px] uppercase tracking-wider hover:text-yellow-400/70 transition-colors">
+              ← Retour à la connexion
+            </button>
+          </form>
+        </div>
+      </div>
+    </>
+  )
+
+  /* ══ Écran step 1 : matricule + mdp ══ */
   return (
     <>
       <style>{STYLES}</style>
