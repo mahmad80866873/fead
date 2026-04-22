@@ -1184,55 +1184,67 @@ function UserModal({ user, onSave, onClose }) {
   )
 }
 
-/* ── Modal Mon Compte (gestion 2FA) ──────────────────────────────────────── */
+/* ── Modal Mon Compte (gestion 2FA par email) ────────────────────────────── */
 function MonCompteModal({ user, apiBase, authFetch, onClose, onUpdate }) {
-  const [step, setStep]       = useState('idle')   // idle | setup | confirm | disable
-  const [qrUrl, setQrUrl]     = useState('')
-  const [secret, setSecret]   = useState('')
-  const [code, setCode]       = useState('')
-  const [msg, setMsg]         = useState('')
-  const [err, setErr]         = useState('')
-  const [loading, setLoading] = useState(false)
+  const [step, setStep]           = useState('idle')   // idle | confirm
+  const [pendingToken, setPending] = useState('')
+  const [maskedEmail, setMasked]   = useState('')
+  const [code, setCode]            = useState('')
+  const [msg, setMsg]              = useState('')
+  const [err, setErr]              = useState('')
+  const [loading, setLoading]      = useState(false)
+  const [cooldown, setCooldown]    = useState(0)
   const is2FA = user?.twoFactorEnabled
 
-  const call = async (path, opts={}) => {
+  const post = async (path, body={}) => {
     setErr(''); setLoading(true)
     try {
-      const res = await authFetch(`${apiBase}${path}`, opts)
+      const res = await authFetch(`${apiBase}${path}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json.error || 'Erreur.')
       return json
     } finally { setLoading(false) }
   }
 
-  const startSetup = async () => {
+  const startCooldown = () => {
+    setCooldown(60)
+    const t = setInterval(() => setCooldown(v => { if (v <= 1) { clearInterval(t); return 0 } return v - 1 }), 1000)
+  }
+
+  const startEnable = async () => {
     try {
-      const json = await call('/api/auth/2fa/setup')
-      setQrUrl(json.qrDataUrl); setSecret(json.secret); setStep('setup')
+      const json = await post('/api/auth/2fa/enable')
+      setPending(json.pendingToken); setMasked(json.maskedEmail); setStep('confirm')
+      startCooldown()
     } catch(e) { setErr(e.message) }
   }
 
-  const confirm2FA = async () => {
+  const confirmEnable = async () => {
     try {
-      await call('/api/auth/2fa/confirm', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ code }),
-      })
-      setMsg('Double authentification activée avec succès.')
-      setStep('idle'); setCode('')
+      await post('/api/auth/2fa/confirm', { pendingToken, code })
+      setMsg('Double authentification activée. Elle sera demandée à votre prochaine connexion.')
+      setStep('idle'); setCode(''); setPending('')
       onUpdate({ twoFactorEnabled: true })
     } catch(e) { setErr(e.message) }
   }
 
   const disable2FA = async () => {
+    if (!window.confirm('Désactiver la double authentification ?')) return
     try {
-      await call('/api/auth/2fa/disable', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ code }),
-      })
+      await post('/api/auth/2fa/disable')
       setMsg('Double authentification désactivée.')
-      setStep('idle'); setCode('')
       onUpdate({ twoFactorEnabled: false })
+    } catch(e) { setErr(e.message) }
+  }
+
+  const resend = async () => {
+    if (cooldown > 0) return
+    try {
+      await post('/api/auth/resend-otp', { pendingToken })
+      startCooldown(); setCode('')
     } catch(e) { setErr(e.message) }
   }
 
@@ -1245,7 +1257,6 @@ function MonCompteModal({ user, apiBase, authFetch, onClose, onUpdate }) {
       <div style={{ border:`1.5px solid ${C.border}`, background:'#fff' }}
         className="rounded-sm shadow-2xl w-full max-w-sm">
 
-        {/* Header */}
         <div style={{ background: C.navy, color: C.gold }}
           className="px-5 py-3 flex items-center justify-between">
           <span className="text-[11px] font-black uppercase tracking-wider">Mon Compte</span>
@@ -1261,8 +1272,8 @@ function MonCompteModal({ user, apiBase, authFetch, onClose, onUpdate }) {
 
           {/* Statut 2FA */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <span style={{ color: C.text }} className="text-[11px] font-bold">Double authentification (2FA)</span>
+            <div className="flex items-center justify-between mb-3">
+              <span style={{ color: C.text }} className="text-[11px] font-bold">Double authentification</span>
               <span style={{
                 background: is2FA ? 'rgba(22,163,74,0.12)' : 'rgba(185,28,28,0.1)',
                 color: is2FA ? '#16a34a' : '#b91c1c',
@@ -1273,90 +1284,70 @@ function MonCompteModal({ user, apiBase, authFetch, onClose, onUpdate }) {
             </div>
 
             {step === 'idle' && !is2FA && (
-              <button onClick={startSetup} disabled={loading}
-                style={{ background: C.navy, color: C.gold }} className={iBtn}>
-                {loading ? 'Chargement…' : 'Activer la 2FA'}
-              </button>
+              <div className="space-y-2">
+                <p style={{ color: C.muted }} className="text-[10px] leading-relaxed">
+                  Un code à 6 chiffres sera envoyé à votre email à chaque connexion.
+                  Assurez-vous qu'un email est associé à votre compte.
+                </p>
+                <button onClick={startEnable} disabled={loading}
+                  style={{ background: C.navy, color: C.gold }} className={iBtn}>
+                  {loading ? 'Envoi du code…' : 'Activer la 2FA par email'}
+                </button>
+              </div>
             )}
 
             {step === 'idle' && is2FA && (
-              <button onClick={() => { setStep('disable'); setCode(''); setErr('') }}
-                style={{ background:'#b91c1c', color:'#fff' }} className={iBtn}>
-                Désactiver la 2FA
-              </button>
+              <div className="space-y-2">
+                <p style={{ color: C.muted }} className="text-[10px] leading-relaxed">
+                  La 2FA est active. Un code email vous est demandé à chaque connexion.
+                </p>
+                <button onClick={disable2FA} disabled={loading}
+                  style={{ background:'#b91c1c', color:'#fff' }} className={iBtn}>
+                  {loading ? 'Traitement…' : 'Désactiver la 2FA'}
+                </button>
+              </div>
             )}
 
-            {/* Setup : QR code */}
-            {step === 'setup' && (
+            {/* Confirmation activation : saisir le code reçu */}
+            {step === 'confirm' && (
               <div className="space-y-3">
                 <p style={{ color: C.muted }} className="text-[10px] leading-relaxed">
-                  Scannez ce QR code avec <strong>Google Authenticator</strong>, <strong>Authy</strong> ou toute application compatible TOTP.
+                  Un code a été envoyé à <strong style={{ color: C.text }}>{maskedEmail}</strong>. Entrez-le pour confirmer l'activation.
                 </p>
-                {qrUrl && <img src={qrUrl} alt="QR 2FA" className="mx-auto w-40 h-40 rounded-sm border" style={{ border:`1px solid ${C.border}` }} />}
-                <div style={{ background:'#f8fafc', border:`1px solid ${C.border}` }} className="px-3 py-2 rounded-sm">
-                  <div style={{ color: C.muted }} className="text-[8px] uppercase font-bold tracking-wider mb-1">Clé manuelle</div>
-                  <div style={{ color: C.text }} className="text-[10px] font-mono break-all">{secret}</div>
-                </div>
-                <div>
-                  <label style={{ color: C.muted }} className="block text-[9px] font-bold uppercase tracking-wider mb-1">
-                    Code de confirmation (6 chiffres)
-                  </label>
-                  <input type="text" inputMode="numeric" maxLength={7} value={code}
-                    onChange={e => { setCode(e.target.value); setErr('') }}
-                    placeholder="000 000"
-                    style={{ border:`1px solid ${C.border}`, color: C.text }}
-                    className="w-full px-2 py-1.5 text-[14px] font-mono text-center tracking-widest rounded-sm outline-none focus:border-[#C49A28]" />
-                </div>
+                <input type="text" inputMode="numeric" maxLength={7} value={code} autoFocus
+                  onChange={e => { setCode(e.target.value); setErr('') }}
+                  placeholder="000 000"
+                  style={{ border:`1px solid ${C.border}`, color: C.text }}
+                  className="w-full px-2 py-1.5 text-[16px] font-mono text-center tracking-widest rounded-sm outline-none focus:border-[#C49A28]" />
                 <div className="flex gap-2">
-                  <button onClick={() => setStep('idle')}
+                  <button onClick={() => { setStep('idle'); setCode(''); setPending('') }}
                     style={{ border:`1px solid ${C.border}`, color: C.muted }}
                     className="flex-1 px-3 py-1.5 text-[10px] font-bold rounded-sm hover:bg-gray-50">
                     Annuler
                   </button>
-                  <button onClick={confirm2FA} disabled={loading || code.replace(/\s/g,'').length < 6}
+                  <button onClick={confirmEnable} disabled={loading || code.replace(/\s/g,'').length < 6}
                     style={{ background: C.navy, color: C.gold }}
                     className="flex-1 px-3 py-1.5 text-[10px] font-black rounded-sm hover:opacity-90 disabled:opacity-50">
                     {loading ? 'Vérification…' : 'Confirmer'}
                   </button>
                 </div>
-              </div>
-            )}
-
-            {/* Désactivation */}
-            {step === 'disable' && (
-              <div className="space-y-3">
-                <p style={{ color: C.muted }} className="text-[10px] leading-relaxed">
-                  Entrez le code de votre application pour confirmer la désactivation.
-                </p>
-                <input type="text" inputMode="numeric" maxLength={7} value={code}
-                  onChange={e => { setCode(e.target.value); setErr('') }}
-                  placeholder="000 000"
-                  style={{ border:`1px solid ${C.border}`, color: C.text }}
-                  className="w-full px-2 py-1.5 text-[14px] font-mono text-center tracking-widest rounded-sm outline-none focus:border-[#C49A28]" />
-                <div className="flex gap-2">
-                  <button onClick={() => setStep('idle')}
-                    style={{ border:`1px solid ${C.border}`, color: C.muted }}
-                    className="flex-1 px-3 py-1.5 text-[10px] font-bold rounded-sm hover:bg-gray-50">
-                    Annuler
-                  </button>
-                  <button onClick={disable2FA} disabled={loading || code.replace(/\s/g,'').length < 6}
-                    style={{ background:'#b91c1c', color:'#fff' }}
-                    className="flex-1 px-3 py-1.5 text-[10px] font-black rounded-sm hover:opacity-90 disabled:opacity-50">
-                    {loading ? 'Vérification…' : 'Désactiver'}
-                  </button>
-                </div>
+                <button onClick={resend} disabled={loading || cooldown > 0}
+                  style={{ color: cooldown > 0 ? C.muted : C.navy }}
+                  className="w-full text-[9px] font-bold uppercase tracking-wider hover:opacity-70 disabled:cursor-not-allowed">
+                  {cooldown > 0 ? `Renvoyer le code (${cooldown}s)` : 'Renvoyer le code'}
+                </button>
               </div>
             )}
 
             {err && (
               <div style={{ background:'rgba(185,28,28,0.08)', border:'1px solid rgba(185,28,28,0.3)' }}
-                className="flex items-center gap-2 px-3 py-2 rounded-sm mt-2">
+                className="px-3 py-2 rounded-sm mt-2">
                 <span className="text-red-600 text-[10px]">{err}</span>
               </div>
             )}
             {msg && (
               <div style={{ background:'rgba(22,163,74,0.08)', border:'1px solid rgba(22,163,74,0.3)' }}
-                className="flex items-center gap-2 px-3 py-2 rounded-sm mt-2">
+                className="px-3 py-2 rounded-sm mt-2">
                 <span className="text-green-700 text-[10px]">{msg}</span>
               </div>
             )}

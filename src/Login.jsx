@@ -71,7 +71,14 @@ export default function Login({ onLogin }) {
 
   /* 2FA step 2 */
   const [pendingToken, setPendingToken] = useState(null)
+  const [maskedEmail, setMaskedEmail]   = useState('')
   const [otpCode, setOtpCode]           = useState('')
+  const [resendCooldown, setResendCooldown] = useState(0)
+
+  const startCooldown = () => {
+    setResendCooldown(60)
+    const t = setInterval(() => setResendCooldown(v => { if (v <= 1) { clearInterval(t); return 0 } return v - 1 }), 1000)
+  }
 
   const handleSubmit = async e => {
     e.preventDefault()
@@ -90,6 +97,8 @@ export default function Login({ onLogin }) {
       if (!res.ok) { setError(json.error || 'Identifiants incorrects.'); return }
       if (json.twoFactorRequired) {
         setPendingToken(json.pendingToken)
+        setMaskedEmail(json.maskedEmail || '')
+        startCooldown()
         return
       }
       localStorage.setItem('faed_user', JSON.stringify(json.user))
@@ -113,6 +122,23 @@ export default function Login({ onLogin }) {
       if (!res.ok) { setError(json.error || 'Code incorrect.'); return }
       localStorage.setItem('faed_user', JSON.stringify(json.user))
       onLogin(json.user)
+    } catch {
+      setError("Impossible de contacter le serveur.")
+    } finally { setLoading(false) }
+  }
+
+  const handleResend = async () => {
+    if (resendCooldown > 0) return
+    try {
+      setLoading(true); setError('')
+      const res = await fetch(`${API_BASE}/api/auth/resend-otp`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pendingToken }),
+      })
+      const json = await res.json()
+      if (!res.ok) { setError(json.error || 'Erreur.'); return }
+      startCooldown()
+      setOtpCode('')
     } catch {
       setError("Impossible de contacter le serveur.")
     } finally { setLoading(false) }
@@ -148,8 +174,13 @@ export default function Login({ onLogin }) {
               Double Authentification
             </div>
             <div style={{ color:'rgba(196,154,40,0.45)' }} className="text-[9px] tracking-widest uppercase mt-1 text-center px-6">
-              Entrez le code à 6 chiffres de votre application d'authentification
+              Double authentification
             </div>
+            {maskedEmail && (
+              <div style={{ color:'rgba(255,255,255,0.35)' }} className="text-[10px] text-center mt-1 px-4">
+                Code envoyé à <span style={{ color:'rgba(196,154,40,0.7)' }}>{maskedEmail}</span>
+              </div>
+            )}
           </div>
 
           <div style={{ height:1, background:`linear-gradient(90deg,transparent,rgba(196,154,40,0.3),transparent)`, margin:'0 24px' }} />
@@ -158,15 +189,14 @@ export default function Login({ onLogin }) {
             <div>
               <label style={{ color:'rgba(196,154,40,0.65)' }}
                 className="block text-[8px] font-black uppercase tracking-widest mb-1.5">
-                Code de vérification
+                Code à 6 chiffres
               </label>
               <input
                 type="text" inputMode="numeric" maxLength={7} value={otpCode}
                 onChange={e => { setOtpCode(e.target.value); setError('') }}
                 placeholder="000 000" autoFocus
                 className="w-full text-center text-[22px] font-black tracking-[0.4em] bg-transparent outline-none text-white py-3 rounded-sm"
-                style={{ border:`1px solid rgba(196,154,40,0.35)`, background:'rgba(196,154,40,0.05)',
-                  letterSpacing:'0.4em' }}
+                style={{ border:`1px solid rgba(196,154,40,0.35)`, background:'rgba(196,154,40,0.05)' }}
               />
             </div>
 
@@ -192,11 +222,18 @@ export default function Login({ onLogin }) {
                 : 'Valider le code'}
             </button>
 
-            <button type="button" onClick={() => { setPendingToken(null); setOtpCode(''); setError('') }}
-              style={{ color:'rgba(196,154,40,0.45)' }}
-              className="w-full text-[9px] uppercase tracking-wider hover:text-yellow-400/70 transition-colors">
-              ← Retour à la connexion
-            </button>
+            <div className="flex items-center justify-between">
+              <button type="button" onClick={() => { setPendingToken(null); setOtpCode(''); setError('') }}
+                style={{ color:'rgba(196,154,40,0.45)' }}
+                className="text-[9px] uppercase tracking-wider hover:text-yellow-400/70 transition-colors">
+                ← Retour
+              </button>
+              <button type="button" onClick={handleResend} disabled={loading || resendCooldown > 0}
+                style={{ color: resendCooldown > 0 ? 'rgba(255,255,255,0.2)' : 'rgba(196,154,40,0.55)' }}
+                className="text-[9px] uppercase tracking-wider hover:opacity-80 transition-colors disabled:cursor-not-allowed">
+                {resendCooldown > 0 ? `Renvoyer (${resendCooldown}s)` : 'Renvoyer le code'}
+              </button>
+            </div>
           </form>
         </div>
       </div>

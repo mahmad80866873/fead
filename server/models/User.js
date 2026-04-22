@@ -17,7 +17,6 @@ const UserSchema = new mongoose.Schema({
   sessionStartedAt:    { type: Date, default: null },
   sessionLastSeenAt:   { type: Date, default: null },
   twoFactorEnabled: { type: Boolean, default: false },
-  twoFactorSecret:  { type: String, default: null },
 }, { timestamps: true, collection: 'users' })
 
 /* Hash du mot de passe avant sauvegarde */

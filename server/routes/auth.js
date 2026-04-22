@@ -1,27 +1,29 @@
 import { Router } from 'express'
-import speakeasy from 'speakeasy'
-import QRCode from 'qrcode'
 import User from '../models/User.js'
 import { log } from '../utils/logger.js'
 import { requireAuth } from '../middleware/authMiddleware.js'
 import { clearSessionFields, createSession, sessionError } from '../utils/session.js'
+import { sendOtpEmail } from '../utils/mailer.js'
 
 const router = Router()
 
-/* Tokens 2FA temporaires (en mémoire, TTL 5 min) */
-const pending2FA = new Map()
-const PENDING_TTL = 5 * 60 * 1000
+/* ── Codes OTP temporaires (en mémoire, TTL 10 min) ───────────────────────── */
+const pendingOTP = new Map()  // pendingToken -> { userId, code, expiresAt, deviceLabel }
+const OTP_TTL = 10 * 60 * 1000
 
-function setPending(token, data) {
-  pending2FA.set(token, { ...data, expiresAt: Date.now() + PENDING_TTL })
-}
-function getPending(token) {
-  const entry = pending2FA.get(token)
-  if (!entry || entry.expiresAt < Date.now()) { pending2FA.delete(token); return null }
-  return entry
+function generateCode() {
+  return String(Math.floor(100000 + Math.random() * 900000))
 }
 function makePendingToken() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
+}
+function setPending(token, data) {
+  pendingOTP.set(token, { ...data, expiresAt: Date.now() + OTP_TTL })
+}
+function getPending(token) {
+  const entry = pendingOTP.get(token)
+  if (!entry || entry.expiresAt < Date.now()) { pendingOTP.delete(token); return null }
+  return entry
 }
 
 /* ── Login ─────────────────────────────────────────────────────────────────── */
@@ -38,11 +40,31 @@ router.post('/login', async (req, res) => {
     const ok = await user.verifyPassword(password)
     if (!ok) return res.status(401).json({ error: 'Identifiants incorrects.' })
 
-    /* 2FA activée → step 2 requis */
-    if (user.twoFactorEnabled && user.twoFactorSecret) {
+    /* 2FA activée → envoyer OTP par email */
+    if (user.twoFactorEnabled) {
+      if (!user.email) {
+        return res.status(400).json({
+          error: 'Aucun email associé à ce compte. Contactez l\'administrateur.'
+        })
+      }
+      const code = generateCode()
       const pendingToken = makePendingToken()
-      setPending(pendingToken, { userId: user._id.toString(), deviceLabel: deviceLabel || req.headers['user-agent'] })
-      return res.json({ twoFactorRequired: true, pendingToken })
+      setPending(pendingToken, {
+        userId: user._id.toString(),
+        code,
+        deviceLabel: deviceLabel || req.headers['user-agent'],
+      })
+      try {
+        await sendOtpEmail(user.email, code)
+      } catch (mailErr) {
+        pendingOTP.delete(pendingToken)
+        console.error('[2FA email]', mailErr.message)
+        return res.status(500).json({ error: mailErr.message })
+      }
+      /* Masquer partiellement l'email pour affichage côté client */
+      const [name, domain] = user.email.split('@')
+      const maskedEmail = name.slice(0, 2) + '***@' + domain
+      return res.json({ twoFactorRequired: true, pendingToken, maskedEmail })
     }
 
     /* Pas de 2FA → session immédiate */
@@ -63,26 +85,27 @@ router.post('/login', async (req, res) => {
   }
 })
 
-/* ── Vérification code 2FA (step 2 du login) ───────────────────────────────── */
+/* ── Vérification code OTP (step 2 du login) ───────────────────────────────── */
 router.post('/verify-2fa', async (req, res) => {
   try {
     const { pendingToken, code } = req.body
     if (!pendingToken || !code) return res.status(400).json({ error: 'Token et code requis.' })
 
     const entry = getPending(pendingToken)
-    if (!entry) return res.status(401).json({ error: 'Session expirée. Recommencez la connexion.' })
+    if (!entry) return res.status(401).json({ error: 'Code expiré. Recommencez la connexion.' })
+
+    if (entry.code !== code.replace(/\s/g, '')) {
+      return res.status(401).json({ error: 'Code incorrect.' })
+    }
+
+    pendingOTP.delete(pendingToken)
 
     const user = await User.findById(entry.userId)
     if (!user || !user.actif) return res.status(401).json({ error: 'Utilisateur introuvable.' })
 
-    const valid = speakeasy.totp.verify({ secret: user.twoFactorSecret, encoding: 'base32', token: code.replace(/\s/g, ''), window: 1 })
-    if (!valid) return res.status(401).json({ error: 'Code incorrect.' })
-
-    pending2FA.delete(pendingToken)
-
     Object.assign(user, { lastLogin: new Date(), ...createSession(entry.deviceLabel) })
     await user.save()
-    await log(user, 'login', { details: 'Connexion (2FA)', ip: req.ip })
+    await log(user, 'login', { details: 'Connexion (2FA email)', ip: req.ip })
 
     res.json({
       user: {
@@ -94,6 +117,29 @@ router.post('/verify-2fa', async (req, res) => {
   } catch (err) {
     console.error('[verify-2fa]', err)
     res.status(500).json({ error: 'Erreur serveur.' })
+  }
+})
+
+/* ── Renvoyer le code OTP ──────────────────────────────────────────────────── */
+router.post('/resend-otp', async (req, res) => {
+  try {
+    const { pendingToken } = req.body
+    if (!pendingToken) return res.status(400).json({ error: 'Token requis.' })
+
+    const entry = getPending(pendingToken)
+    if (!entry) return res.status(401).json({ error: 'Session expirée. Recommencez la connexion.' })
+
+    const user = await User.findById(entry.userId)
+    if (!user || !user.email) return res.status(400).json({ error: 'Email introuvable.' })
+
+    const code = generateCode()
+    setPending(pendingToken, { ...entry, code })
+
+    await sendOtpEmail(user.email, code)
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('[resend-otp]', err)
+    res.status(500).json({ error: err.message || 'Erreur serveur.' })
   }
 })
 
@@ -120,38 +166,46 @@ router.post('/logout', requireAuth, async (req, res) => {
   res.json({ message: 'Deconnecte.' })
 })
 
-/* ── Générer le secret 2FA + QR code ──────────────────────────────────────── */
-router.get('/2fa/setup', requireAuth, async (req, res) => {
+/* ── Activer la 2FA ────────────────────────────────────────────────────────── */
+router.post('/2fa/enable', requireAuth, async (req, res) => {
   try {
-    const secretObj = speakeasy.generateSecret({ name: `FAED Niger:${req.user.matricule}`, issuer: 'FAED Niger', length: 20 })
-    const secret = secretObj.base32
-    const qrDataUrl = await QRCode.toDataURL(secretObj.otpauth_url)
+    const user = await User.findById(req.user._id)
+    if (!user) return res.status(404).json({ error: 'Utilisateur introuvable.' })
+    if (!user.email) {
+      return res.status(400).json({ error: 'Aucun email associé à votre compte. Demandez à l\'administrateur d\'en ajouter un.' })
+    }
+    if (user.twoFactorEnabled) return res.status(400).json({ error: '2FA déjà activée.' })
 
-    /* Stocker le secret temporairement (sera confirmé ensuite) */
-    await User.updateOne({ _id: req.user._id }, { $set: { twoFactorSecret: secret } })
+    /* Envoyer un code de vérification avant d'activer */
+    const code = generateCode()
+    const pendingToken = makePendingToken()
+    setPending(pendingToken, { userId: user._id.toString(), code, deviceLabel: null })
 
-    res.json({ secret, qrDataUrl })
+    await sendOtpEmail(user.email, code)
+
+    const [name, domain] = user.email.split('@')
+    const maskedEmail = name.slice(0, 2) + '***@' + domain
+    res.json({ pendingToken, maskedEmail })
   } catch (err) {
-    console.error('[2fa/setup]', err)
-    res.status(500).json({ error: 'Erreur serveur.' })
+    console.error('[2fa/enable]', err)
+    res.status(500).json({ error: err.message || 'Erreur serveur.' })
   }
 })
 
-/* ── Confirmer et activer la 2FA ───────────────────────────────────────────── */
+/* ── Confirmer l'activation 2FA ────────────────────────────────────────────── */
 router.post('/2fa/confirm', requireAuth, async (req, res) => {
   try {
-    const { code } = req.body
-    if (!code) return res.status(400).json({ error: 'Code requis.' })
+    const { pendingToken, code } = req.body
+    if (!pendingToken || !code) return res.status(400).json({ error: 'Token et code requis.' })
 
-    const user = await User.findById(req.user._id)
-    if (!user?.twoFactorSecret) return res.status(400).json({ error: 'Lancez d\'abord la configuration.' })
+    const entry = getPending(pendingToken)
+    if (!entry) return res.status(401).json({ error: 'Code expiré. Recommencez.' })
+    if (entry.code !== code.replace(/\s/g, '')) {
+      return res.status(400).json({ error: 'Code incorrect.' })
+    }
 
-    const valid = speakeasy.totp.verify({ secret: user.twoFactorSecret, encoding: 'base32', token: code.replace(/\s/g, ''), window: 1 })
-    if (!valid) return res.status(400).json({ error: 'Code incorrect. Vérifiez votre application.' })
-
-    user.twoFactorEnabled = true
-    await user.save()
-
+    pendingOTP.delete(pendingToken)
+    await User.updateOne({ _id: req.user._id }, { $set: { twoFactorEnabled: true } })
     res.json({ ok: true, message: 'Double authentification activée.' })
   } catch (err) {
     console.error('[2fa/confirm]', err)
@@ -162,19 +216,10 @@ router.post('/2fa/confirm', requireAuth, async (req, res) => {
 /* ── Désactiver la 2FA ─────────────────────────────────────────────────────── */
 router.post('/2fa/disable', requireAuth, async (req, res) => {
   try {
-    const { code } = req.body
-    if (!code) return res.status(400).json({ error: 'Code requis pour désactiver.' })
-
     const user = await User.findById(req.user._id)
     if (!user?.twoFactorEnabled) return res.status(400).json({ error: '2FA non activée.' })
 
-    const valid = speakeasy.totp.verify({ secret: user.twoFactorSecret, encoding: 'base32', token: code.replace(/\s/g, ''), window: 1 })
-    if (!valid) return res.status(400).json({ error: 'Code incorrect.' })
-
-    user.twoFactorEnabled = false
-    user.twoFactorSecret = null
-    await user.save()
-
+    await User.updateOne({ _id: req.user._id }, { $set: { twoFactorEnabled: false } })
     res.json({ ok: true, message: 'Double authentification désactivée.' })
   } catch (err) {
     console.error('[2fa/disable]', err)
