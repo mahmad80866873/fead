@@ -455,11 +455,16 @@ function RecordCard({ record, apiBase, onOpen, onDelete, canEdit, authFetch, use
   }
 
   /* Appelé après saisie du motif de modification */
-  const doModify = (motif) => {
+  const doModify = async (motif) => {
     setMotifModal(null)
     if (user?.role === 'agent') {
-      const age = Date.now() - new Date(record.createdAt).getTime()
-      if (age > 60 * 60 * 1000) { setAuthModal({ action:'modifier', motif }); return }
+      const res = await (authFetch || fetch)(`${apiBase}/api/fiches/${record._id}/can-act?action=modifier`)
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        if (json.code === 'DELAY_EXCEEDED') { setAuthModal({ action: 'modifier', motif }); return }
+        alert(json.error || 'Erreur.')
+        return
+      }
     }
     onOpen(record, motif)
   }
