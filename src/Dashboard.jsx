@@ -204,7 +204,7 @@ function PdfPreviewModal({ record, apiBase, onClose, authFetch }) {
           } catch { /* photo inaccessible */ }
         }
 
-        const res = await fetch(`${apiBase}/api/pdf/finalize`, {
+        const res = await authFetch(`${apiBase}/api/pdf/finalize`, {
           method:'POST', headers:{ 'Content-Type':'application/json' },
           body: JSON.stringify({ ...record, _photos }),
         })

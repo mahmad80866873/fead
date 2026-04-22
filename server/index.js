@@ -14,6 +14,7 @@ import usersRouter       from './routes/users.js'
 import authRequestsRouter from './routes/authRequests.js'
 import activityLogsRouter  from './routes/activityLogs.js'
 import eventsRouter from './routes/events.js'
+import { requireAuth } from './middleware/authMiddleware.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app  = express()
@@ -29,7 +30,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 /* ── Route upload photos ─────────────────────────────────────────────────── */
 import { upload } from './middleware/upload.js'
 
-app.post('/api/photos', upload.fields([
+app.post('/api/photos', requireAuth, upload.fields([
   { name:'profilDroit', maxCount:1 },
   { name:'face', maxCount:1 },
   { name:'quartGauche', maxCount:1 },
@@ -686,7 +687,7 @@ app.get('/api/pdf/template', async (_req, res) => {
   } catch(e) { console.error(e); res.status(500).json({ error:'template_failed' }) }
 })
 
-app.post('/api/pdf/finalize', async (req, res) => {
+app.post('/api/pdf/finalize', requireAuth, async (req, res) => {
   try {
     const body = req.body || {}
     const photos = body._photos || {}

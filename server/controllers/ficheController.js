@@ -46,8 +46,10 @@ export async function listFiches(req, res) {
         { lieuNaissance: regex }, { residence: regex }, { profession: regex },
         { agentSaisie: regex }, { ficheEtabliePar: regex },
       ]
+    } else if (req.user?.role === 'agent') {
+      // Sans recherche : l'agent ne voit que ses propres fiches
+      filter.createdBy = req.user._id
     }
-    if (req.user?.role === 'agent') filter.createdBy = req.user._id
     if (req.query.type === 'pn') filter.pn = true
     if (req.query.type === 'gn') filter.gn = true
     if (req.query.type === 'gnn') filter.gnn = true
@@ -120,6 +122,9 @@ export async function updateFiche(req, res) {
     if (!existing) return res.status(404).json({ error: 'Fiche introuvable.' })
 
     if (req.user?.role === 'agent') {
+      if (String(existing.createdBy) !== String(req.user._id)) {
+        return res.status(403).json({ error: 'Accès refusé : vous ne pouvez modifier que vos propres fiches.' })
+      }
       const ok = await canAgentAct(req.user._id, req.params.id, 'modifier', existing.createdAt)
       if (!ok) {
         return res.status(403).json({
@@ -159,6 +164,9 @@ export async function deleteFiche(req, res) {
     if (fiche.deleted) return res.status(404).json({ error: 'Fiche deja supprimee.' })
 
     if (req.user?.role === 'agent') {
+      if (String(fiche.createdBy) !== String(req.user._id)) {
+        return res.status(403).json({ error: 'Accès refusé : vous ne pouvez supprimer que vos propres fiches.' })
+      }
       const ok = await canAgentAct(req.user._id, req.params.id, 'supprimer', fiche.createdAt)
       if (!ok) {
         return res.status(403).json({
