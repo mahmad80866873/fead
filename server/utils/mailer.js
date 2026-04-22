@@ -16,7 +16,7 @@ export async function sendOtpEmail(to, code) {
   const transport = createTransport()
   if (!transport) throw new Error('Service email non configuré. Contactez l\'administrateur.')
 
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER
+  const from = process.env.SMTP_FROM || process.env.MAIL_FROM || process.env.SMTP_USER
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#f8f8f8;padding:0;border-radius:8px;overflow:hidden">
       <div style="background:#1C3A0E;padding:24px;text-align:center">
