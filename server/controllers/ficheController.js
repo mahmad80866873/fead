@@ -237,12 +237,18 @@ export async function listTrash(req, res) {
 
 export async function restoreFiche(req, res) {
   try {
-    const fiche = await Fiche.findByIdAndUpdate(
+    const existing = await Fiche.findById(req.params.id).select('nom prenoms noDossier').lean()
+    if (!existing) return res.status(404).json({ error: 'Fiche introuvable.' })
+
+    await Fiche.findByIdAndUpdate(
       req.params.id,
       { deleted: false, $unset: { deletedAt: 1, deletedBy: 1, deletedByName: 1 } },
-      { new: true }
     )
-    if (!fiche) return res.status(404).json({ error: 'Fiche introuvable.' })
+
+    if (req.user) {
+      const cible = getFicheDisplayName(existing)
+      await log(req.user, 'restaurer', { cible, ficheId: req.params.id, details: `Restauration du dossier de ${cible}${buildNoDossierSuffix(existing.noDossier)}`, ip: req.ip })
+    }
 
     broadcastRealtime('fiches:changed', { action: 'restore', ficheId: req.params.id })
     res.json({ message: 'Fiche restauree.' })
@@ -261,6 +267,11 @@ export async function permanentDelete(req, res) {
     for (const piece of fiche.pieces || []) {
       const filePath = path.join(process.cwd(), 'server', 'uploads', piece.storedName)
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+    }
+
+    if (req.user) {
+      const cible = getFicheDisplayName(fiche)
+      await log(req.user, 'supprimer_definitif', { cible, ficheId: fiche._id, details: `Suppression définitive du dossier de ${cible}${buildNoDossierSuffix(fiche.noDossier)}`, ip: req.ip })
     }
 
     broadcastRealtime('fiches:changed', { action: 'permanent-delete', ficheId: req.params.id })

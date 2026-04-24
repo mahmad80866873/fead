@@ -149,6 +149,74 @@ router.post('/resend-otp', async (req, res) => {
   }
 })
 
+/* ── Mot de passe oublié : envoi OTP ──────────────────────────────────────── */
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { identifier } = req.body
+    if (!identifier?.trim()) return res.status(400).json({ error: 'Identifiant requis.' })
+
+    const id = identifier.trim()
+    const user = await User.findOne({
+      actif: true,
+      $or: [
+        { matricule: id.toUpperCase() },
+        { email: id.toLowerCase() },
+      ],
+    })
+
+    if (!user) return res.status(404).json({ error: 'Aucun compte actif trouvé avec cet identifiant.' })
+    if (!user.email) return res.status(400).json({ error: 'Aucun email associé à ce compte. Contactez un administrateur.' })
+
+    const code = generateCode()
+    const pendingToken = makePendingToken()
+    setPending(pendingToken, { userId: user._id.toString(), code, type: 'reset' })
+
+    try {
+      await sendOtpEmail(user.email, code, 'reset')
+    } catch (mailErr) {
+      pendingOTP.delete(pendingToken)
+      console.error('[forgot-password]', mailErr.message)
+      return res.status(500).json({ error: "Échec d'envoi de l'email. Réessayez." })
+    }
+
+    const [name, domain] = user.email.split('@')
+    const maskedEmail = name.slice(0, 2) + '***@' + domain
+    res.json({ ok: true, pendingToken, maskedEmail })
+  } catch (err) {
+    console.error('[forgot-password]', err)
+    res.status(500).json({ error: 'Erreur serveur.' })
+  }
+})
+
+/* ── Mot de passe oublié : réinitialisation ───────────────────────────────── */
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { pendingToken, code, newPassword } = req.body
+    if (!pendingToken || !code || !newPassword) return res.status(400).json({ error: 'Données manquantes.' })
+    if (newPassword.length < 6) return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 6 caractères.' })
+
+    const entry = getPending(pendingToken)
+    if (!entry) return res.status(401).json({ error: 'Code expiré. Recommencez.' })
+    if (entry.type !== 'reset') return res.status(401).json({ error: 'Token invalide.' })
+    if (entry.code !== code.replace(/\s/g, '')) return res.status(401).json({ error: 'Code incorrect.' })
+
+    pendingOTP.delete(pendingToken)
+
+    const user = await User.findById(entry.userId)
+    if (!user || !user.actif) return res.status(401).json({ error: 'Utilisateur introuvable.' })
+
+    user.password = newPassword
+    await user.save()
+
+    await log(user, 'reset_password', { details: 'Réinitialisation du mot de passe via OTP email', ip: req.ip })
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('[reset-password]', err)
+    res.status(500).json({ error: 'Erreur serveur.' })
+  }
+})
+
 /* ── Heartbeat ─────────────────────────────────────────────────────────────── */
 router.post('/heartbeat', requireAuth, async (req, res) => {
   try {

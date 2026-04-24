@@ -4,7 +4,7 @@ const ActivityLogSchema = new mongoose.Schema({
   user:       { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   userName:   { type: String },
   userRole:   { type: String },
-  action:     { type: String, enum: ['login','logout','creer','modifier','supprimer','consulter'], required: true },
+  action:     { type: String, enum: ['login','logout','creer','modifier','supprimer','consulter','supprimer_definitif','restaurer','reset_password'], required: true },
   cible:      { type: String },           // nom/prénom de la fiche concernée
   ficheId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Fiche' },
   details:    { type: String },           // info supplémentaire

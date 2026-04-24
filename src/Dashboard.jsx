@@ -1290,12 +1290,15 @@ function AuthRequestModal({ fiche, action, apiBase, authFetch, onClose, onSent }
 
 /* ── Journal d'activité ──────────────────────────────────────────────────── */
 const ACTION_META = {
-  login:     { label:'Connexion',    bg:'#e0e7ff', color:'#3730a3' },
-  logout:    { label:'Déconnexion',  bg:'#f3f4f6', color:'#6b7280' },
-  creer:     { label:'Création',     bg:'#dcfce7', color:'#166534' },
-  modifier:  { label:'Modification', bg:'#fef3c7', color:'#92400e' },
-  supprimer: { label:'Suppression',  bg:'#fee2e2', color:'#991b1b' },
-  consulter: { label:'Consultation', bg:'#e0f2fe', color:'#0369a1' },
+  login:              { label:'Connexion',            bg:'#e0e7ff', color:'#3730a3' },
+  logout:             { label:'Déconnexion',          bg:'#f3f4f6', color:'#6b7280' },
+  creer:              { label:'Création',             bg:'#dcfce7', color:'#166534' },
+  modifier:           { label:'Modification',         bg:'#fef3c7', color:'#92400e' },
+  supprimer:          { label:'Suppression',          bg:'#fee2e2', color:'#991b1b' },
+  consulter:          { label:'Consultation',         bg:'#e0f2fe', color:'#0369a1' },
+  supprimer_definitif:{ label:'Suppression définitive', bg:'#fce7f3', color:'#9d174d' },
+  restaurer:          { label:'Restauration',         bg:'#ede9fe', color:'#5b21b6' },
+  reset_password:     { label:'Réinit. mot de passe', bg:'#fff7ed', color:'#9a3412' },
 }
 
 function JournalActivite({ apiBase, authFetch }) {
