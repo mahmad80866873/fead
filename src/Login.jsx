@@ -68,6 +68,7 @@ export default function Login({ onLogin }) {
   const [showPwd, setShowPwd]     = useState(false)
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState('')
+  const [lockCountdown, setLockCountdown] = useState(0)
 
   /* 2FA step 2 */
   const [pendingToken, setPendingToken] = useState(null)
@@ -90,6 +91,11 @@ export default function Login({ onLogin }) {
   const startCooldown = () => {
     setResendCooldown(60)
     const t = setInterval(() => setResendCooldown(v => { if (v <= 1) { clearInterval(t); return 0 } return v - 1 }), 1000)
+  }
+
+  const startLockCountdown = (seconds) => {
+    setLockCountdown(seconds)
+    const t = setInterval(() => setLockCountdown(v => { if (v <= 1) { clearInterval(t); return 0 } return v - 1 }), 1000)
   }
 
   const startForgotCooldown = () => {
@@ -173,7 +179,11 @@ export default function Login({ onLogin }) {
         }),
       })
       const json = await res.json()
-      if (!res.ok) { setError(json.error || 'Identifiants incorrects.'); return }
+      if (!res.ok) {
+        setError(json.error || 'Identifiants incorrects.')
+        if (json.lockedSeconds) startLockCountdown(json.lockedSeconds)
+        return
+      }
       if (json.twoFactorRequired) {
         setPendingToken(json.pendingToken)
         setMaskedEmail(json.maskedEmail || '')
@@ -632,22 +642,35 @@ export default function Login({ onLogin }) {
               </div>
             </div>
 
-            {/* Erreur */}
+            {/* Erreur / Blocage */}
             {error && (
               <div style={{ background:'rgba(185,28,28,0.12)', border:'1px solid rgba(185,28,28,0.4)' }}
-                className="flex items-center gap-2 px-3 py-2 rounded-sm">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                  className="w-3.5 h-3.5 text-red-400 shrink-0">
-                  <circle cx="12" cy="12" r="10"/>
-                  <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
-                <span className="text-red-400 text-[10px]">{error}</span>
+                className="flex flex-col gap-1 px-3 py-2 rounded-sm">
+                <div className="flex items-center gap-2">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                    className="w-3.5 h-3.5 text-red-400 shrink-0">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  <span className="text-red-400 text-[10px]">{error}</span>
+                </div>
+                {lockCountdown > 0 && (
+                  <div className="flex items-center gap-2 mt-1 pl-5">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                      className="w-3 h-3 text-red-300 shrink-0">
+                      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    <span className="text-red-300 text-[10px] font-mono font-bold">
+                      {String(Math.floor(lockCountdown / 60)).padStart(2,'0')}:{String(lockCountdown % 60).padStart(2,'0')}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
             {/* Bouton connexion */}
             <div className="l-fade-4 pt-1">
-              <button type="submit" disabled={loading}
+              <button type="submit" disabled={loading || lockCountdown > 0}
                 style={{ background:`linear-gradient(135deg,${C.gold},#a8791e,${C.gold2})`, color: C.navy,
                   boxShadow:`0 4px 20px rgba(196,154,40,0.4)` }}
                 className="w-full flex items-center justify-center gap-2 py-3 font-black text-[11px]

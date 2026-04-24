@@ -26,6 +26,32 @@ function getPending(token) {
   return entry
 }
 
+/* ── Tentatives de connexion échouées (en mémoire) ─────────────────────────── */
+const loginAttempts = new Map()
+const MAX_ATTEMPTS    = 3
+const LOCKOUT_MS      = 15 * 60 * 1000   // 15 minutes
+
+function attemptKey(identifier) {
+  return identifier.trim().toLowerCase()
+}
+function getLockout(key) {
+  const e = loginAttempts.get(key)
+  if (!e) return null
+  if (e.lockedUntil && Date.now() < e.lockedUntil) return Math.ceil((e.lockedUntil - Date.now()) / 1000)
+  return null
+}
+function recordFailure(key) {
+  const e = loginAttempts.get(key) || { count: 0, lockedUntil: null }
+  if (e.lockedUntil && Date.now() >= e.lockedUntil) { e.count = 0; e.lockedUntil = null }
+  e.count += 1
+  if (e.count >= MAX_ATTEMPTS) e.lockedUntil = Date.now() + LOCKOUT_MS
+  loginAttempts.set(key, e)
+  return e
+}
+function clearAttempts(key) {
+  loginAttempts.delete(key)
+}
+
 /* ── Login ──────────────────────────────────────────────��──────────────────── */
 router.post('/login', async (req, res) => {
   try {
@@ -35,6 +61,16 @@ router.post('/login', async (req, res) => {
     }
 
     const identifier = matricule.trim()
+    const key = attemptKey(identifier)
+
+    const remaining = getLockout(key)
+    if (remaining !== null) {
+      return res.status(429).json({
+        error: `Compte temporairement bloqué. Réessayez dans ${Math.ceil(remaining / 60)} min ${remaining % 60} s.`,
+        lockedSeconds: remaining,
+      })
+    }
+
     const user = await User.findOne({
       actif: true,
       $or: [
@@ -42,10 +78,26 @@ router.post('/login', async (req, res) => {
         { email: identifier.toLowerCase() },
       ],
     })
-    if (!user) return res.status(401).json({ error: 'Identifiants incorrects.' })
+    if (!user) {
+      const e = recordFailure(key)
+      const left = MAX_ATTEMPTS - e.count
+      const msg = e.lockedUntil
+        ? `Compte bloqué pendant 15 minutes après ${MAX_ATTEMPTS} tentatives échouées.`
+        : `Identifiants incorrects. ${left} tentative${left > 1 ? 's' : ''} restante${left > 1 ? 's' : ''}.`
+      return res.status(401).json({ error: msg, attemptsLeft: e.lockedUntil ? 0 : left, lockedSeconds: e.lockedUntil ? Math.ceil(LOCKOUT_MS / 1000) : null })
+    }
 
     const ok = await user.verifyPassword(password)
-    if (!ok) return res.status(401).json({ error: 'Identifiants incorrects.' })
+    if (!ok) {
+      const e = recordFailure(key)
+      const left = MAX_ATTEMPTS - e.count
+      const msg = e.lockedUntil
+        ? `Compte bloqué pendant 15 minutes après ${MAX_ATTEMPTS} tentatives échouées.`
+        : `Identifiants incorrects. ${left} tentative${left > 1 ? 's' : ''} restante${left > 1 ? 's' : ''}.`
+      return res.status(401).json({ error: msg, attemptsLeft: e.lockedUntil ? 0 : left, lockedSeconds: e.lockedUntil ? Math.ceil(LOCKOUT_MS / 1000) : null })
+    }
+
+    clearAttempts(key)
 
     /* OTP obligatoire si SMTP configuré */
     const smtpReady = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
