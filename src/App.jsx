@@ -116,13 +116,15 @@ function SectionBar({ num, title, icon }) {
 }
 
 /* ── Cell: label header + content ─────────────────────────────────────────── */
-function Cell({ label, children, cls='', style, borderRight=true }) {
+function Cell({ label, children, cls='', style, borderRight=true, required=false }) {
   return (
     <div className={`flex flex-col ${borderRight ? 'border-r' : ''} ${cls}`}
       style={{ borderColor: C.border, ...style }}>
       <div style={{ background: C.cellHdr, borderBottomColor: C.border, color: C.navy }}
         className="border-b px-2 py-0.5">
-        <span className="text-[8.5px] font-bold uppercase tracking-wider">{label}</span>
+        <span className="text-[8.5px] font-bold uppercase tracking-wider">
+          {label}{required && <span style={{ color:'#b91c1c' }} className="ml-0.5">*</span>}
+        </span>
       </div>
       <div className="flex-1 flex items-center px-2 py-1">
         {children}
@@ -225,6 +227,17 @@ function AuthenticatedApp({ user, onLogout }) {
 
   /* Sauvegarder la fiche dans MongoDB (sans générer/télécharger le PDF) */
   const saveFiche = async () => {
+    const missing = []
+    if (!data.nom?.trim())           missing.push('Nom')
+    if (!data.prenoms?.trim())       missing.push('Prénom(s)')
+    if (!data.dateNaissance?.trim()) missing.push('Date de naissance')
+    if (!data.lieuNaissance?.trim()) missing.push('Lieu de naissance')
+    if (!data.motifs?.trim())        missing.push('Motif(s)')
+    if (missing.length) {
+      setError(`Champs obligatoires manquants : ${missing.join(', ')}.`)
+      return
+    }
+
     try {
       setSaving(true); setError('')
 
@@ -343,7 +356,7 @@ function AuthenticatedApp({ user, onLogout }) {
             {/* NOM | PRENOMS | EPOUSE */}
             <div className="flex" style={{ borderBottom: `1px solid ${C.border}`, minHeight: 52 }}>
               {[['Nom','nom'],['Prénom(s)','prenoms'],['Épouse / Époux','epouse']].map(([label, name], i) => (
-                <Cell key={name} label={label} borderRight={i < 2} cls="flex-1">
+                <Cell key={name} label={label} borderRight={i < 2} cls="flex-1" required={name === 'nom' || name === 'prenoms'}>
                   <FI name={name} value={data[name]} onChange={onChange} cls="w-full" />
                 </Cell>
               ))}
@@ -365,7 +378,7 @@ function AuthenticatedApp({ user, onLogout }) {
                 </div>
               </Cell>
 
-              <Cell label="Date de naissance" cls="shrink-0" style={{ width: 130 }}>
+              <Cell label="Date de naissance" cls="shrink-0" style={{ width: 130 }} required>
                 <FI name="dateNaissance" value={data.dateNaissance} onChange={onChange}
                   cls="w-full" type="date" />
               </Cell>
@@ -407,7 +420,7 @@ function AuthenticatedApp({ user, onLogout }) {
 
             {/* LIEU | RÉGION | DÉPARTEMENT | FORMULE */}
             <div className="flex" style={{ borderBottom: `1px solid ${C.border}`, minHeight: 52 }}>
-              <Cell label="Lieu de naissance" cls="flex-1">
+              <Cell label="Lieu de naissance" cls="flex-1" required>
                 <FI name="lieuNaissance" value={data.lieuNaissance} onChange={onChange} cls="w-full" />
               </Cell>
               <Cell label="Région" cls="flex-1">
@@ -477,7 +490,7 @@ function AuthenticatedApp({ user, onLogout }) {
               <div className="flex-1" style={{ borderRight: `1px solid ${C.border}` }}>
                 <div style={{ background: C.cellHdr, borderBottom: `1px solid ${C.border}`, color: C.navy }}
                   className="px-2 py-0.5">
-                  <span className="text-[8.5px] font-bold uppercase tracking-wider">Motif(s)</span>
+                  <span className="text-[8.5px] font-bold uppercase tracking-wider">Motif(s)<span style={{ color:'#b91c1c' }} className="ml-0.5">*</span></span>
                 </div>
                 <textarea name="motifs" value={data.motifs} onChange={onChange} rows={4}
                   style={{ color: C.text }}

@@ -38,14 +38,25 @@ export async function listFiches(req, res) {
 
     const filter = { deleted: { $ne: true } }
     if (q) {
-      const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
-      filter.$or = [
+      const escape = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const regex = new RegExp(escape(q), 'i')
+      const parts = q.trim().split(/\s+/).filter(Boolean)
+      const baseOr = [
         { nom: regex }, { prenoms: regex }, { epouse: regex },
         { nee: regex }, { service: regex }, { noDossier: regex },
         { formule: regex }, { nProcedure: regex }, { nIU: regex },
         { lieuNaissance: regex }, { residence: regex }, { profession: regex },
         { agentSaisie: regex }, { ficheEtabliePar: regex },
       ]
+      if (parts.length >= 2) {
+        const r1 = new RegExp(escape(parts[0]), 'i')
+        const r2 = new RegExp(escape(parts.slice(1).join(' ')), 'i')
+        baseOr.push(
+          { $and: [{ nom: r1 }, { prenoms: r2 }] },
+          { $and: [{ prenoms: r1 }, { nom: r2 }] },
+        )
+      }
+      filter.$or = baseOr
     } else if (req.user?.role === 'agent') {
       // Sans recherche : l'agent ne voit que ses propres fiches
       filter.createdBy = req.user._id
@@ -89,6 +100,17 @@ export async function getFiche(req, res) {
 export async function createFiche(req, res) {
   try {
     const formData = parseFormData(req.body)
+
+    const missing = []
+    if (!formData.nom?.trim())           missing.push('Nom')
+    if (!formData.prenoms?.trim())       missing.push('Prénom(s)')
+    if (!formData.dateNaissance?.trim()) missing.push('Date de naissance')
+    if (!formData.lieuNaissance?.trim()) missing.push('Lieu de naissance')
+    if (!formData.motifs?.trim())        missing.push('Motif(s)')
+    if (missing.length) {
+      return res.status(400).json({ error: `Champs obligatoires manquants : ${missing.join(', ')}.` })
+    }
+
     const pieces = mapUploadedPieces(req.files || [])
     const createdBy = req.user?._id || null
     const createdByName = getActorName(req.user)
