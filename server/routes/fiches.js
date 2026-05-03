@@ -19,6 +19,29 @@ const uploadPieces = upload.array('pieces', 2)
 const notInvite    = requireRole('superadmin', 'agent')
 const onlySA       = requireRole('superadmin')
 
+// Statistiques par région
+router.get('/stats/regions', requireAuth, async (req, res) => {
+  try {
+    const results = await Fiche.aggregate([
+      { $match: { deleted: { $ne: true } } },
+      { $group: {
+          _id: {
+            $cond: [
+              { $and: [{ $ne: ['$region', null] }, { $ne: ['$region', ''] }] },
+              { $toLower: '$region' },
+              'non renseignée',
+            ]
+          },
+          count: { $sum: 1 },
+      }},
+      { $sort: { count: -1 } },
+    ])
+    res.json(results.map(r => ({ region: r._id, count: r.count })))
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur.' })
+  }
+})
+
 // Routes corbeille (avant /:id pour éviter conflit)
 router.get   ('/trash',            requireAuth, onlySA, listTrash)
 router.put   ('/:id/restore',      requireAuth, onlySA, restoreFiche)

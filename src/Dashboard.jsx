@@ -765,7 +765,7 @@ function PageCorbeille({ apiBase, authFetch }) {
 }
 
 /* ── Page Accueil ─────────────────────────────────────────────────────────── */
-function PageAccueil({ total, records, apiBase, onNew, onOpen, onDelete, user, authFetch, pendingCount, trashCount }) {
+function PageAccueil({ total, records, apiBase, onNew, onOpen, onDelete, user, authFetch, pendingCount, trashCount, totalAll }) {
   const stats = [
     ['Total Fiches', total, 'enregistrÃ©es',
       <svg key="a" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>],
@@ -843,6 +843,9 @@ function PageAccueil({ total, records, apiBase, onNew, onOpen, onDelete, user, a
         })}
       </div>
 
+      {/* Statistiques par région */}
+      <StatsRegions apiBase={apiBase} authFetch={authFetch} />
+
       {/* Dernières fiches */}
       <div>
         <div className="flex items-center justify-between mb-3">
@@ -874,6 +877,80 @@ function PageAccueil({ total, records, apiBase, onNew, onOpen, onDelete, user, a
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+/* ── Statistiques par région ─────────────────────────────────────────────── */
+function StatsRegions({ apiBase, authFetch }) {
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    authFetch(`${apiBase}/api/fiches/stats/regions`)
+      .then(r => r.json())
+      .then(rows => { setData(rows); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [apiBase, authFetch])
+
+  const capitalize = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s
+  const max = data[0]?.count || 1
+
+  return (
+    <div style={{ border:`1px solid ${C.border}`, background:'white' }} className="rounded-sm">
+      <div style={{ background: C.navy, borderRadius:'2px 2px 0 0' }}
+        className="px-4 py-2.5 flex items-center gap-2">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+          style={{ color: C.gold }} className="w-4 h-4 shrink-0">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+          <circle cx="12" cy="10" r="3"/>
+        </svg>
+        <span style={{ color: C.gold }} className="text-[11px] font-black uppercase tracking-wider">
+          Statistiques par région
+        </span>
+      </div>
+
+      {loading ? (
+        <div className="px-4 py-6 text-center">
+          <span style={{ color: C.muted }} className="text-[11px]">Chargement…</span>
+        </div>
+      ) : data.length === 0 ? (
+        <div className="px-4 py-6 text-center">
+          <span style={{ color: C.muted }} className="text-[11px]">Aucune donnée.</span>
+        </div>
+      ) : (
+        <div className="px-4 py-3 space-y-2.5">
+          {data.map(({ region, count }) => {
+            const pct = Math.round((count / max) * 100)
+            const isUnknown = region === 'non renseignée'
+            return (
+              <div key={region} className="flex items-center gap-3">
+                <div style={{ minWidth: 110, color: isUnknown ? C.muted : C.text }}
+                  className="text-[11px] font-semibold truncate shrink-0">
+                  {capitalize(region)}
+                </div>
+                <div className="flex-1 flex items-center gap-2">
+                  <div style={{ background:'#f1f5f9' }} className="flex-1 rounded-full h-2 overflow-hidden">
+                    <div
+                      style={{
+                        width: `${pct}%`,
+                        background: isUnknown
+                          ? '#cbd5e1'
+                          : `linear-gradient(90deg, ${C.navy}, ${C.navy3})`,
+                        transition: 'width 0.6s ease',
+                      }}
+                      className="h-2 rounded-full" />
+                  </div>
+                  <span style={{ color: isUnknown ? C.muted : C.navy, minWidth: 28 }}
+                    className="text-[11px] font-black text-right">
+                    {count}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
