@@ -99,35 +99,7 @@ router.post('/login', async (req, res) => {
 
     clearAttempts(key)
 
-    /* OTP obligatoire si SMTP configuré */
-    const smtpReady = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
-    if (smtpReady) {
-      if (!user.email) {
-        return res.status(403).json({
-          error: 'Aucun email associé à ce compte. Contactez un administrateur pour en ajouter un avant de vous connecter.',
-        })
-      }
-
-      const code = generateCode()
-      const pendingToken = makePendingToken()
-      setPending(pendingToken, {
-        userId: user._id.toString(),
-        code,
-        deviceLabel: deviceLabel || req.headers['user-agent'],
-      })
-      try {
-        await sendOtpEmail(user.email, code)
-      } catch (mailErr) {
-        pendingOTP.delete(pendingToken)
-        console.error('[OTP email]', mailErr.message)
-        return res.status(500).json({ error: "Échec d'envoi du code OTP. Réessayez dans quelques instants." })
-      }
-      const [name, domain] = user.email.split('@')
-      const maskedEmail = name.slice(0, 2) + '***@' + domain
-      return res.json({ twoFactorRequired: true, pendingToken, maskedEmail })
-    }
-
-    /* Session directe (SMTP non configuré) */
+    /* Session directe (2FA désactivée) */
     Object.assign(user, { lastLogin: new Date(), ...createSession(deviceLabel || req.headers['user-agent']) })
     await user.save()
     await log(user, 'login', { details: 'Connexion', ip: req.ip })
