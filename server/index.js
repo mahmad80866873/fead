@@ -230,13 +230,15 @@ function buildPage1(doc, reg, bld, data) {
   CHDR(pg, bld, 'Date de naissance', x_date, x_fil, y, hH)
   VAL(pg, reg, fmtDate(data.dateNaissance), x_date+4, y+hH+20, x_fil-x_date-8, 8.5)
 
-  // Filiation
-  CHDR(pg, bld, 'Filiation — Fils/Fille de ... et de ... né(e)', x_fil, x_nat, y, hH)
-  const fy = y+hH+10
-  ;[['Fils de :','filDe',0],['et de :','etDe',85],['né(e) :','nee',170]].forEach(([lbl,key,dx]) => {
-    TXT(pg, bld, lbl, x_fil+4+dx, fy+6, 7)
-    const vw = dx < 170 ? 72 : (x_nat-x_fil-180)
-    VAL(pg, reg, data[key], x_fil+4+dx+36, fy+6, vw)
+  // Filiation — 3 lignes pour éviter le débordement
+  CHDR(pg, bld, 'Filiation — Fils/Fille de ... et de ...', x_fil, x_nat, y, hH)
+  const fy = y + hH + 2
+  const flbW = 36          // largeur du label (ex: "Fils de :")
+  const fvW  = x_nat - x_fil - flbW - 8  // largeur valeur ≈ 218 pt
+  ;[['Fils de :','filDe'],['et de :','etDe'],['Surnom :','nee']].forEach(([lbl,key],i) => {
+    const ly = fy + 4 + i * 11
+    TXT(pg, bld, lbl, x_fil+4, ly, 7)
+    VAL(pg, reg, data[key], x_fil+4+flbW, ly, fvW)
   })
 
   // Nationalité — Nat. Nigérienne et Autre sur la même ligne
