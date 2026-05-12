@@ -36,6 +36,9 @@ const FicheSchema = new mongoose.Schema({
   departement:   { type: String, trim: true },
   formule:       { type: String, trim: true },
 
+  /* Infractions */
+  infractions:    [{ type: String, trim: true }],
+
   /* Motifs / Fiche */
   motifs:         { type: String, trim: true },
   nCliche:        { type: String, trim: true },

@@ -1,6 +1,149 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Dashboard from './Dashboard.jsx'
 import Login from './Login.jsx'
+
+/* ── Liste des infractions ───────────────────────────────────────────────── */
+const INFRACTIONS_LIST = [
+  "Abandon d'un enfant ou d'un incapable","Abandon de famille ou de foyer",
+  "Abus d'autorité contre les particuliers","Abus de blanc-seing","Abus de confiance",
+  "Abus des besoins d'un mineur","Actes d'appui, fourniture d'armes et incitation",
+  "Actes impudiques sur mineurs de même sexe","Actions illicites sur le marché",
+  "Administration de substances nuisibles et mise en danger de la vie d'autrui",
+  "Adultère","Aliénation de la liberté d'autrui","Apologie et de l'incitation au terrorisme",
+  "Arrestations et séquestrations arbitraires","Assassinat",
+  "Association de malfaiteurs en vue de perpétrer des actes terroristes",
+  "Association de malfaiteurs","Atteintes à la défense nationale",
+  "Atteintes à la liberté d'accès et à l'égalité des candidats devant les marchés publics et les délégations de service public",
+  "Attentat à la pudeur et viol aggravé","Attentats à la liberté","Attentats à la pudeur",
+  "Attentats terroristes à l'explosif",
+  "Attentats, complots et autres infractions contre l'autorité de l'Etat et l'intégrité du territoire national",
+  "Bris de clôture et enlèvement de bornes","Bris de scellés","Castration","Chantage",
+  "Coalition de fonctionnaires","Concussion","Contrefaçon de brevets et d'œuvres",
+  "Contrefaçon des sceaux de l'Etat, timbres et marques",
+  "Contribution à la commission d'actes de terrorisme","Corruption et infractions assimilées",
+  "Coups et blessures volontaires","Crime de l'esclavage",
+  "Crimes commis par la participation à un mouvement insurrectionnel",
+  "Crimes contre l'humanité","Crimes de guerre","Crimes de trahison et d'espionnage",
+  "Crimes tendant à troubler l'Etat par le massacre ou la dévastation","Cybercriminalité",
+  "Défaut de déclaration de naissance ou de remise d'un nouveau-né",
+  "Dégradation de véhicules","Délit d'esclavage","Délit d'usure","Délit de fuite",
+  "Dénonciation calomnieuse","Destruction d'édifices et dégradations de monuments publics",
+  "Destruction d'objets mobiliers et de récoltes","Destruction de titres",
+  "Détournement de mineur","Détournement et destruction d'objets saisis ou donnés en gage",
+  "Dommages aux animaux",
+  "Du détournement d'aéronefs, de navires, de plates-formes fixes et de véhicules terrestres et fluviaux",
+  "Émission de chèques sans provision","Empoisonnement","Enlèvement de pièces dans les dépôts publics",
+  "Enlèvement, recel, suppression, supposition et substitution d'enfant, non représentation d'un enfant par la personne chargée de sa garde",
+  "Entraves à la liberté des enchères","Entraves à la liberté du travail",
+  "Exercice illégal de l'autorité publique","Extorsion de titres ou de signature par violence",
+  "Fausse monnaie","Faux en écriture","Faux monnayage","Faux serment","Faux témoignage",
+  "Financement du terrorisme","Génocide","Harcèlement sexuel",
+  "Homicide et blessures involontaires","Incendie et destruction volontaires",
+  "Incendie involontaire de maison habitée ou servant à l'habitation","Infanticide",
+  "Infractions aux lois sur les inhumations",
+  "Infractions contre la sécurité de l'aviation civile, des transports terrestres et fluviaux",
+  "Infractions contre la sécurité des navires et plates-formes fixes",
+  "Infractions contre les personnes jouissant d'une protection internationale",
+  "Infractions en matière d'Informatique","Infractions relatives à des matières nucléaires ou dangereuses",
+  "Ingérence des fonctionnaires","Ivresse publique",
+  "Jeux de hasard sur la voie publique ou dans un lieu public sans autorisation",
+  "Larcins et filouteries","Loteries sans autorisation","Maisons de jeux sans autorisation",
+  "Maisons de prêts sur gages sans autorisation",
+  "Mariage contracté hors les cas prévus par la loi ou la coutume","Mendicité","Meurtre",
+  "Meurtre en concomitance","Mutilations génitales féminines",
+  "Non représentation d'un enfant sur la garde duquel il a été statué par décision de justice",
+  "Opposition à l'exécution des travaux publics","Organisation d'actes de terrorisme",
+  "Outrage public à la pudeur","Outrages","Parricide","Police des débits de boissons",
+  "Prise d'otages","Proxénétisme et excitation à la débauche","Rébellion",
+  "Recel de terroristes","Recrutement de terroristes","Refus d'un service légalement dû",
+  "Repenti","Résistance à l'exécution d'une décision de justice","Révélation de secret",
+  "Révélation de secrets de fabrique","Soustractions commises par les dépositaires publics",
+  "Subornation de témoins","Terrorisme nucléaire","Torture et traitements inhumains ou dégradants",
+  "Trafic de drogues","Traite de personnes","Usurpation de titre ou de fonction",
+  "Vagabondage","Viol","Violation de domicile","Violences","Vol de bétail",
+  "Vol qualifié","Vol simple",
+]
+
+/* ── Sélecteur d'infractions (multi-select + recherche + ajout libre) ────── */
+function InfractionSelect({ value = [], onChange, C }) {
+  const [query, setQuery]   = useState('')
+  const [open, setOpen]     = useState(false)
+  const containerRef        = useRef(null)
+
+  useEffect(() => {
+    const handler = e => { if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const q = query.trim().toLowerCase()
+  const filtered = INFRACTIONS_LIST.filter(i =>
+    (!q || i.toLowerCase().includes(q)) && !value.includes(i)
+  ).slice(0, 40)
+
+  const exactMatch = INFRACTIONS_LIST.some(i => i.toLowerCase() === q)
+  const canAddCustom = query.trim().length > 2 && !exactMatch && !value.includes(query.trim())
+
+  const select = item => { onChange([...value, item]); setQuery(''); setOpen(false) }
+  const remove = item => onChange(value.filter(v => v !== item))
+  const addCustom = () => { const t = query.trim(); if (t) { onChange([...value, t]); setQuery(''); setOpen(false) } }
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      {/* Tags sélectionnés */}
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-1 px-2 pt-1.5 pb-0.5">
+          {value.map(v => (
+            <span key={v}
+              style={{ background:'rgba(28,58,14,0.08)', border:`1px solid rgba(28,58,14,0.2)`, color: C.navy }}
+              className="flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-sm max-w-[260px]">
+              <span className="truncate">{v}</span>
+              <button type="button" onClick={() => remove(v)}
+                className="text-red-400 hover:text-red-600 leading-none shrink-0 ml-0.5 text-[10px]">✕</button>
+            </span>
+          ))}
+        </div>
+      )}
+      {/* Champ de recherche */}
+      <div className="flex items-center gap-1.5 px-2 py-1.5">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+          style={{ color:'#9ca3af' }} className="w-3 h-3 shrink-0">
+          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input type="text" value={query}
+          onChange={e => { setQuery(e.target.value); setOpen(true) }}
+          onFocus={() => setOpen(true)}
+          placeholder={value.length ? 'Ajouter une infraction…' : 'Rechercher ou saisir une infraction…'}
+          style={{ color: C.text }} className="flex-1 bg-transparent outline-none text-[11px] placeholder:text-gray-400" />
+        {query && (
+          <button type="button" onClick={() => { setQuery(''); setOpen(false) }}
+            style={{ color:'#9ca3af' }} className="text-[11px] leading-none">✕</button>
+        )}
+      </div>
+      {/* Dropdown */}
+      {open && (filtered.length > 0 || canAddCustom) && (
+        <div style={{ border:`1px solid ${C.border}`, background:'white', zIndex:100, maxHeight:220 }}
+          className="absolute left-0 right-0 top-full overflow-y-auto shadow-xl rounded-sm">
+          {canAddCustom && (
+            <button type="button" onClick={addCustom}
+              style={{ borderBottom:`1px solid ${C.border}`, color: C.navy }}
+              className="w-full text-left px-3 py-2 text-[10px] font-bold hover:bg-green-50 flex items-center gap-1.5 shrink-0">
+              <span style={{ color:'#16a34a', fontSize:13 }}>+</span>
+              Ajouter : «&nbsp;{query.trim()}&nbsp;»
+            </button>
+          )}
+          {filtered.map(item => (
+            <button key={item} type="button" onClick={() => select(item)}
+              style={{ borderBottom:`1px solid #f1f5f9`, color:'#374151' }}
+              className="w-full text-left px-3 py-1.5 text-[10px] hover:bg-blue-50 leading-snug">
+              {item}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://fead-3sfa.onrender.com').replace(/\/$/, '')
 
@@ -37,6 +180,7 @@ const init = {
   dateNaissance:'', filDe:'', etDe:'', nee:'',
   natNigerienne:false, autreNationalite:false, nationaliteAutre:'',
   lieuNaissance:'', departement:'', region:'', formule:'',
+  infractions:[],
   motifs:'', nCliche:'',
   maisonArret:false, palmaire:false,
   ficheEtabliePar:'', ficheLe:'', nIU:'',
@@ -483,6 +627,19 @@ function AuthenticatedApp({ user, onLogout }) {
               <Cell label="Formule Digitale" cls="shrink-0" borderRight={false} style={{ width: 130 }}>
                 <FI name="formule" value={data.formule} onChange={onChange} cls="w-full" />
               </Cell>
+            </div>
+
+            {/* INFRACTION(S) */}
+            <div style={{ borderBottom: `1px solid ${C.border}`, position:'relative' }}>
+              <div style={{ background: C.cellHdr, borderBottom: `1px solid ${C.border}`, color: C.navy }}
+                className="px-2 py-0.5">
+                <span className="text-[8.5px] font-bold uppercase tracking-wider">Infraction(s)</span>
+              </div>
+              <InfractionSelect
+                value={data.infractions || []}
+                onChange={v => setData(p => ({ ...p, infractions: v }))}
+                C={C}
+              />
             </div>
 
             {/* MOTIFS + N°CLICHÉ + MAISON D'ARRÊT / PALMAIRE */}

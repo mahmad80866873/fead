@@ -258,6 +258,18 @@ function buildPage1(doc, reg, bld, data) {
       CELL(pg, reg, bld, label, data[key], cols4[i], cols4[i+1], y, y+row3H, hH, c4W-10))
   y += row3H
 
+  /* INFRACTIONS */
+  const infractions = Array.isArray(data.infractions) ? data.infractions : []
+  if (infractions.length > 0) {
+    const infraText = infractions.map((inf, i) => `${i+1}. ${inf}`).join('   ')
+    const linesNeeded = Math.ceil(infractions.length / 2)
+    const infraH = hH + Math.max(14, linesNeeded * 11 + 6)
+    RECT(pg, y, y+infraH, ML, MR, 0.5, MGRAY)
+    CHDR(pg, bld, 'Infraction(s)', ML, MR, y, hH)
+    WRAP(pg, reg, infraText, ML+4, y+hH+11, MR-ML-8, 8, 3)
+    y += infraH
+  }
+
   /* MOTIFS + PANEL DROIT */
   const motifH = 134
   const xPanel = MR-145
